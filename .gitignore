@@ -1,0 +1,12 @@
+*~
+*pyc
+_trial_temp*/
+_trial_temp/
+/.links2/bookmarks.html
+/.links2/links.his
+/serverlib/.links2/bookmarks.html
+/serverlib/.links2/links.his
+/bvtlib/.links2/bookmarks.html
+/bvtlib/.links2/links.his
+*_flymkae.py
+*/*_flymake.py

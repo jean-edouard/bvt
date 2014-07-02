@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="" > 
+    <head> 
+        <title>{% block title %}Autotest{% endblock %}</title> 
+        <link rel="stylesheet" type="text/css" href="/django.css" />
+        <style type="text/css">
+a:link { color: #000080 }
+a:visited { color: #000080 }
+
+.failure { background-color: #fcc }
+.progress { background-color: #aaa }
+.known { background-color: #ffbf00 }
+.pass { background-color: #cfc }
+
+        </style>
+    </head> 
+    <body>
+
+{% block content %}{{content|safe}}{% endblock %}
+    </body> 
+</html> 

@@ -1,0 +1,2 @@
+#!/bin/sh
+mongo autotest-db/autotest

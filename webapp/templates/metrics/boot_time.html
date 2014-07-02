@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      
+      function drawChart() {
+        {% for dut, dut_js_name, points in data %}
+        var {{dut_js_name}}_data = new google.visualization.DataTable();
+        {{dut_js_name}}_data.addColumn('string', 'Build ID');
+        {{dut_js_name}}_data.addColumn('number', '{{dut}} boot time');
+
+        {{dut_js_name}}_data.addRows({{ points|length }});
+        
+        {% for point in points %}
+        {{dut_js_name}}_data.setValue({{forloop.counter0}}, 0, '{{point.build}}');
+        {{dut_js_name}}_data.setValue({{forloop.counter0}}, 1, {{point.average}});
+        {% endfor %}
+        
+        var {{dut_js_name}}_chart = new google.visualization.LineChart(document.getElementById('{{dut}}'));
+        {{dut_js_name}}_chart.draw({{dut_js_name}}_data, {
+                width: 800, height: 480,
+                title: 'Boot Time',
+                pointSize:8,
+                vAxis: {maxValue:35.0, minValue:20.0, title:"seconds"}
+        });
+        {% endfor %}
+      }
+    </script>
+{% endblock %}
+
+{% block content %}
+<h2>Boot Time</h2>
+As "<i>end of the boot</i>" event we chose the "<i>ui-ready</i>" <a href="http://boiler:8180/source/xref/toolstack-data/dist/html/script/index.js#375">notification message</a> from <i>UIVM</i> to <i>xenmgr</i> in <i>dom0</i>.
+<br/>
+To get a more precise time, than the <i>syslog</i> one, we are <a href="http://boiler:8180/source/xref/manager/xenmgr/XenMgr/Expose/HostObject.hs#147">logging</a> "<i>/proc/uptime</i>".
+<br/>
+Before reading the boot time from syslog, the test system force a new <a href="http://boiler:8180/source/xref/bvt/bvtlib/syslog.py#35">full reboot</a>.
+<br/>
+This is particularly important, because the first boot time after a fresh install is sensibly longer.
+<br/>
+Each point of the chart is the <a href="http://boiler:8180/source/xref/bvt/webapp/metrics/models.py#12">average</a> of all the stored boot times for a given combination of (machine, build).
+<br/>
+    {% for dut, points in data %}
+    <div id="{{dut}}"></div>
+    {% endfor %}
+{% endblock %}

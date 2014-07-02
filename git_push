@@ -1,0 +1,5 @@
+#!/bin/sh
+git stash
+git pull --rebase
+git stash pop
+git push ssh://xengit@git.xci-test.com/home/xc_source/git/xenclient/bvt.git

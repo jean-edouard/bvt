@@ -1,0 +1,13 @@
+[MESSAGES CONTROL]
+
+# C0111 I don't mind not having docstrings for everything
+# C0321 more than one statement per line is good layout IMNSHO
+# C0322 I don't mind leaving spaces out before operators
+# C0324                            ... or after operators
+# C0324                            ... really dont care
+disable-msg=C0321,C0322,C0324,C0111,C0323
+
+
+[REPORTS]
+include-ids=y
+reports=no

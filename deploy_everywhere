@@ -1,0 +1,15 @@
+#! /bin/sh -xe
+
+ssh root@autotest-1 "cd /scratch/bvt && git pull && git reset --hard e064280"
+ssh root@autotest-2 "cd /scratch/bvt && git pull && git reset --hard e064280"
+ssh root@autotest-3 "cd /scratch/bvt && git pull && git reset --hard e064280"
+ssh root@autotest-1 "cd /scratch/scripts && git pull && /scratch/autotest_python/bin/python setup.py install"
+ssh root@autotest-2 "cd /scratch/scripts && git pull && /scratch/autotest_python/bin/python setup.py install"
+ssh root@autotest-3 "cd /scratch/scripts && git pull && /scratch/autotest_python/bin/python setup.py install"
+ssh root@autotest-1 "cd /opt/watcher && git pull"
+ssh root@autotest-1 'pkill -f tracker.coffee'
+ssh root@autotest-1 'pkill -f autotestbot.coffee'
+ssh root@autotest-1 'pkill -f manage.py'
+ssh root@autotest-1 'pkill -f doorbell'
+#ssh root@10.105.103.51 "cd /usr/local/src/bvt && really git pull"
+

@@ -1,0 +1,202 @@
+#
+# Copyright (c) 2014 Citrix Systems, Inc.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+from bvtlib.retry import retry
+from twisted.internet import defer
+import os, cStringIO
+from settings import PXE_DIR, PXE_SERVER, PASSWORD_HASH, \
+    RECOVERY_PUBLIC_KEY, RECOVERY_PRIVATE_KEY
+from os.path import join, exists, split 
+from bvtlib.run import isdir, islink, run, isfile, readfile, writefile, \
+    SubprocessError
+from bvtlib.exceptions import ExternalFailure
+from bvtlib.database_cursor import open_state_db
+from bvtlib.exceptions import ExternalFailure
+from subprocess import Popen, PIPE
+from infrastructure.xt.get_build_info import get_build_info
+from infrastructure.xt.find_build import find_build
+from infrastructure.xt.inspect_build import inspect_build
+from infrastructure.xt.generate_pxe_files import generate_pxelinux_cfg, \
+    atomic_write, write_netboot
+from infrastructure.xt.decode_tag import extract_branch
+from infrastructure.xt.releases import scan_releases
+
+class InvalidAction(Exception): pass
+class UnknownRelease(ExternalFailure):
+    """release not known"""
+
+class MissingBootFile(ExternalFailure):
+    """A file that was expected in the boot directory was not found there."""
+
+class UnknownBuild(ExternalFailure):
+    """build not known"""
+
+INSTALLER_STATUS_REPORT = """<interactive>true</interactive>
+HEADLINE<preinstall>#!/bin/ash
+ifconfig eth0 up
+udhcpc eth0
+touch /config/ssh_enabled
+/etc/init.d/sshd stop
+/etc/init.d/sshd start
+</preinstall>
+<mode>upgrade</mode>
+<primary-disk>sda</primary-disk>
+<network-interface mode="dhcp"></network-interface>
+<keyboard>us</keyboard>
+<enable-ssh>true</enable-ssh>
+<password>%s</password>
+<recovery-public-key>%s</recovery-public-key>
+<recovery-private-key>%s</recovery-private-key>
+""" % (PASSWORD_HASH, PUBLIC_KEY, PRIVATE_KEY)
+
+PXE_CONFIG_START = """default autotest
+prompt 1
+timeout 1
+
+label autotest
+"""
+ANSWERFILE_ENDING = """
+set -x 
+set -e
+mount -o remount,rw /mnt/part2/dom0
+echo starting postintall >&2
+sed -i -e 's/xencons=xvc0/xencons=xvc0 rw/' /mnt/part2/dom0/usr/share/xenmgr-1.0/templates/*/service-ndvm
+sed -i -e 's/SELINUX=enforcing/SELINUX=permissive/' /mnt/part2/dom0/etc/selinux/config
+echo 'system_r:sshd_t:s0 sysadm_r:sysadm_t:s0' >> /mnt/part2/dom0/etc/selinux/xc_policy/contexts/users/root
+</postinstall>
+<postcommit>
+echo starting postcommit >&2
+set -x
+set -e
+sed  -i -e \'s/set default=0/set default="XenClient Technical Support Option: Normal Mode with synchronised console"/\' /mnt/part2/dom0/boot/system/grub/grub.cfg
+echo finishing postcommit >&2
+</postcommit>
+"""
+
+class AmbiguousRequest(Exception):
+    """Please specify only one of release or build"""
+
+def pxe_filename(dut): 
+    return join(PXE_DIR, 'autotest', dut+'.cfg')
+
+
+def restore_pxe_menu(dut):
+    """Restore PXE menu for dut"""
+    return retry(lambda:  run( 
+            ['ln', '-s', '-f', '../latestbuilds/pxelinux.cfg', 
+             pxe_filename(dut)], host=PXE_SERVER), 'set PXE symlink', 
+            catch=[SubprocessError])
+
+class NoTFTPActivityTimeout(Exception):
+    pass
+
+def last_tftp_file(dut_ip):
+    """Return last file accessed by dut_ip"""
+    sdb = open_state_db()
+    last_file = sdb.select1_field(
+        'file', 'tftp WHERE client=%s ORDER BY timestamp DESC LIMIT 1', 
+        dut_ip)
+    tftp_after = sdb.select1('COUNT(id) FROM tftp', client=dut_ip)[0]
+    print 'TFTP:', tftp_after, 'last_file', last_file
+    return (last_file, tftp_after)
+
+
+def wait_for_tftp(dut_ip, predicate):
+    """Wait for predicate to hold for the last file accessed
+    by dut_ip"""
+    _, tftp_before = last_tftp_file(dut_ip)
+    def check_tftp():
+        """Check TFTP server activtiy"""
+        last_file, tftp_after = last_tftp_file(dut_ip)
+        print 'TFTPWAIT:', tftp_after, 'was', tftp_before, 'last', last_file
+        if tftp_after == tftp_before or not predicate(last_file):
+            raise NoTFTPActivityTimeout(tftp_before, tftp_after, last_file)
+
+    retry(check_tftp, timeout=360.0, catch=[NoTFTPActivityTimeout],
+          description='wait for TFTP')
+
+
+def select_build(build, release):
+    """Work out build_info for build or release"""
+    if release and build:
+        raise AmbiguousRequest(build, release)
+    if build:
+        branch = extract_branch(build)
+        print 'HEADLINE: setting PXE to install', build, 'on', branch
+        orig_build_directory = find_build(branch, build)
+        print 'INFO: build is located at', orig_build_directory
+        bi =  inspect_build(orig_build_directory, build)
+        if bi == []:
+            raise UnknownBuild(branch, build, orig_build_directory)
+        return bi[0]
+    else:
+        assert release
+        for releasec in scan_releases():
+            if releasec['alias'] == release:
+                return releasec
+        raise UnknownRelease(release)
+
+def set_pxe_build(dut, build=None, release=None, action='install'):
+    """Set dut to do action using build when it PXE boots"""
+    assert dut
+    print 'PXE_INSTALL:', action, 'for', release or build, 'on', dut
+    if action == 'boot':
+        print 'PXE_INSTALL: booting'
+        assert build is None
+
+    print 'PXE_INSTALL: setting PXE auto-run build for', dut, 'to', \
+        release or build
+    autopxe = pxe_filename(dut)
+    print 'PXE_INSTALL: autopxe is', autopxe
+    if build is None and release is None:
+        print 'INFO: restoring PXE menu'
+        restore_pxe_menu(dut)
+        return
+    build_info = select_build(build, release)
+    print 'INFO: installing from', build_info['build_directory']
+    print 'PXE_INSTALL: build info', build_info
+    kent_variant = [v for v in build_info['variants'] if v['kind'] == 'kent']
+    plain_variant = [v for v in build_info['variants'] if v['kind'] == 'plain']
+    if kent_variant:
+        netboot = kent_variant[0]['netboot']
+        variant = 'kent'
+        print 'INFO: using kent variant'
+    else:
+        assert len(plain_variant) == 1
+        netboot = plain_variant[0]['netboot']
+        variant = 'plain'
+        print 'INFO: using plain variant'
+    ansdir_tftp = join('autotest', dut) + '/' + netboot
+    ansdir = join(PXE_DIR, ansdir_tftp)
+    print 'INFO: answer file TFTP directory path', ansdir_tftp
+    atomic_write(autopxe, 'default '+build_info['alias']+('-u' if action=='upgrade' else '') +'\n'+
+                 generate_pxelinux_cfg(build_info, tftp_path=ansdir_tftp))
+    with file(autopxe, 'r') as fin:
+        for line in fin.readlines():
+            print 'PXE: PXE line', line
+    write_netboot(build_info, split(ansdir)[0],
+                  tftp_path=ansdir_tftp, kind=variant,
+                  ansfile_filter=
+                  lambda x: INSTALLER_STATUS_REPORT if
+                    action == 'ssh' else
+                      x.replace('</postinstall>', ANSWERFILE_ENDING),
+                  ansfile_glob='network.ans')
+    with file(ansdir+'/network.ans', 'r') as fin:
+        for line in fin.readlines():
+            print 'PXE: answerfile line', line
+    return build_info

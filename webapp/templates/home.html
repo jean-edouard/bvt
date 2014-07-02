@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<ul>
+   <li><a href="grid/">Grid of results for latest builds</a></li>
+   <li>Master builds and BVT results: <a href="changelog?branch=master">sorted by revision</a> or <a href="coverage?branch=master">sorted by build</a>.</li>
+   <li><a href="results">Latest results</a></li>
+   <li><a href="results/limit=100/status=unknown_failures/reverse=1">Recent unknown failures</a></li>
+   <li><a href="duts">Latest test device activity</a></li>
+   <li><a href="metrics/boot_time">Boot Time</a></li>
+   <li><a href="logs">Latest logs entries</a></li>
+   <li><a href="results">Results table</a></li>
+   <li><a href="scheduler">Test scheduler</a></li>
+   <li><a href="build/latest">Test results for the latest master build</a></li>
+   <li><a href="coverage/branch=master/report=1/days=7.5">Weekly report on master</a></li>
+</ul>
+{% endblock %}

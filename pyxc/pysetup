@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Create enough space on disk
+lvresize /dev/xenclient/root -L +60M
+resize2fs /dev/xenclient/root
+
+# Install the python packages
+opkg update
+opkg install python-dbus python-multiprocessing python-pygobject python-subprocess python-syslog
+
+# Temp
+cd /root/pyxc/packages
+opkg install libpyglib-2.0-python0_2.20.0-r0.5_i686core2.ipk
+opkg install python-pygobject_2.20.0-r0.5_i686core2.ipk
+rm -rf /root/pyxc/packages

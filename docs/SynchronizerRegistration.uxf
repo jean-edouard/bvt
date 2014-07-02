@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><umlet_diagram><help_text/><zoom_level>10</zoom_level><element><type>com.umlet.element.base.SequenceDiagram</type><coordinates><x>0</x><y>0</y><w>820</w><h>1550</h></coordinates><panel_attributes>
+title: Synchronizer Registration
+User|UI|Input|BED|Synchronizer
+
+iframe{:TransmitterRegister Wizard
+1-&gt;&gt;2:Synchronizer Host Name
+2-&gt;&gt;4:set_registration_data("autoxt1.cam.xci-test.com", "")
+4-&gt;&gt;5:/usr/bin/certinfo
+5-&gt;&gt;4:certificate
+4-&gt;&gt;2:(CERT_NEED_AUTH_CODE, "30F3 D843 FEF9 1468")
+2-&gt;&gt;1:Do You Trust?
+1-&gt;&gt;2:I Trust
+2-&gt;&gt;4:register_authorize("30F3 D843 FEF9 1468")
+2-&gt;&gt;3:set_auth_on_boot(true)
+2-&gt;&gt;3:auth_set_context_flags("", "", AUTH_FLAG_REMOTE_USER)
+2-&gt;&gt;1:Press CTRL+ALT+BACKSPACE
+iframe}
+
+iframe{:Authentication
+1-&gt;&gt;3:[CTRL]+[ALT]+[BACKSPACE]
+3-&gt;&gt;2:Load http://1.0.0.0/auth.html
+3.&gt;&gt;2:sync_auth_username("")
+3.&gt;&gt;2:focus_auth_field(AUTH_FIELD_USERNAME)
+3.&gt;&gt;2:secure_mode(1)
+1-&gt;&gt;3:Input Username characters
+3-&gt;&gt;2:Send characters
+1-&gt;&gt;3:[TAB] Select password field
+3.&gt;&gt;2:focus_auth_field(AUTH_FIELD_PASSWORD)
+1-&gt;&gt;3:Input Password characters
+3-&gt;&gt;2:Send spaces
+iframe}
+
+iframe{:Registration
+1-&gt;&gt;3:[ENTER]
+3-&gt;3:write pwd in /mnt/secure/remote-hash-XXX
+3.&gt;&gt;2:auth_status("in_progress", AUTH_FLAG_REMOTE_STARTED)
+3.&gt;&gt;4:auth_remote_start_login("admin")
+4-&gt;4: read pwd from disk
+4-&gt;&gt;5:UserLoginRequest
+4-&gt;&gt;5:Register
+4-&gt;&gt;5:exchange_keys
+4-&gt;&gt;5:Device.Bind
+4-&gt;&gt;3:auth_remote_status(false, REMOTE_AUTH_OK, userid, "admin", "")
+3.&gt;&gt;2:auth_status("in_progress", AUTH_FLAG_LOCAL_STARTED)
+3.&gt;&gt;4:auth_remote_start_recovery(false, userid, "admin")
+4-&gt;&gt;5:get_recovery_key
+4-&gt;&gt;3:auth_remote_status(false, REMOTE_AUTH_OK, userid, "admin", recovery-key)
+3.&gt;&gt;2:auth_status("in_progress", AUTH_FLAG_LOCAL_STARTED)
+3-&gt;&gt;3:sec-new-user remoteuser-id
+3-&gt;&gt;3:sec-check-pass remoteuser-id local-hash
+3-&gt;&gt;3:sec-mount remoteuser-id local-hash
+3.&gt;&gt;2:secure_mode(0)
+3.&gt;&gt;2:auth_status("ok", 0)
+iframe}
+		</panel_attributes><additional_attributes/></element></umlet_diagram>

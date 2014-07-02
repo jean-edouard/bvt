@@ -1,0 +1,5 @@
+#! /bin/sh
+
+cd $(dirname $0)
+cd webapp
+/scratch/autotest_python/bin/python ./manage.py runserver 0.0.0.0:8000

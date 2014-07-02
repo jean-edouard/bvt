@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="" > 
+    <head> 
+        <title>{% block title %}Autotest{% endblock %}</title> 
+        <link rel="stylesheet" type="text/css" href="/django.css" />
+	<script type="text/javascript" src="http://www.openjs.com/scripts/events/keyboard_shortcuts/shortcut.js">
+	</script>
+        <style type="text/css">
+        </style>
+        <meta name="robots" content="NONE,NOARCHIVE" />
+        {% block head %}{{head|safe}}{% endblock %}
+    </head> 
+    <body class=""> 
+        <!-- Container --> 
+        <div id="container"> 
+            <!-- Header --> 
+            <div id="header"> 
+                <div id="branding">XenClient</div> 
+            </div> 
+            <!-- END Header --> 
+            <div class="breadcrumbs">
+                <a href="/">Home</a>
+            </div> 
+            
+            <!-- Content --> 
+            <div id="content" class="colM"> 
+                <div id="content-queryform">
+                    <form method="get" action="/grid">
+                       {% block queryform %}{{queryform|safe}}{% endblock %} 
+                    </form>
+                </div> 
+                <div id="content-main"> 
+                    {% block content %}{{content|safe}}{% endblock %} 
+                </div> 
+                <br class="clear" /> 
+            </div> 
+            <!-- END Content --> 
+            
+            <div id="footer">{% block footer %}{% endblock %} </div> 
+        </div> 
+        <!-- END Container --> 
+    </body> 
+</html> 
+

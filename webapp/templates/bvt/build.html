@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if data %}
+
+<h1>{{data.tag}}</h1>
+
+<h2>Changes:</h2>
+{% for change in data.changes %}
+<p>
+<b><a href="mailto:{{change.email}}?Subject={{data.tag}}">{{change.name}}</a>: <a href="{{change.url}}">{{change.comments}}</a></b>
+</br></br>
+<b><a href="{{change.rep_url}}">{{change.rep}}</a>:</b>
+<ul>
+    {% for file in change.files %}
+    <li><a href="{{file.url}}">{{file.path}}</a></li>
+    {% endfor %}
+</ul>
+</p>
+{% endfor %}
+
+<h2>Build:</h2>
+<b>Result: <a href="{{data.build.url}}" class={{data.build.class}}>{{data.build.result_text}}</a></b>
+
+
+<h2>Test:</h2>
+{% if data.test %}
+<table>
+<tr>
+    <th>Test Cases/Duts</th>
+    {% for dut in data.test.duts %}
+    <th>{{dut}}</th>
+    {% endfor %}
+</tr>
+
+{% for test, results in data.test.results %}
+<tr>
+    <th>{{test}}</th>
+    {% for result in results %}
+    <td class="{{result.class}}"><a href="{{result.url}}">{{result.summary}}</a></td>
+    {% endfor %}
+{% endfor %}
+</tr>
+</table>
+{% else %}No test results for this build{% endif %}
+
+{% else %}Sorry, no data for this build id{% endif %}
+{% endblock %}

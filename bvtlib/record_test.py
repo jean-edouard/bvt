@@ -132,7 +132,7 @@ class RecordTest:
         """Start recording a test"""
         try:
             run(['logger', 'BVT', 'starting', self.full_description()], 
-                host=self.dut, timeout=5)
+                host=self.dut, timeout=2)
         except SubprocessError:
             print 'INFO: unable to mark test log'
         if not self.record:

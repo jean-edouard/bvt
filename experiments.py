@@ -32,6 +32,7 @@ from random import choice
 from pdb import post_mortem
 from traceback import print_exc
 from bvtlib.get_build import get_build
+from bvtlib.mongodb import NoMongoHost
 
 class NoValueForArgument(Exception):
     """We have no value for a test argument"""
@@ -41,7 +42,10 @@ class NoBuildFound(Exception):
 
 def set_experiment_install_flag(dut, value):
     """Set write flag for machine named dut"""
-    mongodb.get_autotest().duts.update({'name':dut}, {'$set':{'write':value}})
+    try:
+        mongodb.get_autotest().duts.update({'name':dut}, {'$set':{'write':value}})
+    except NoMongoHost:
+        print 'NOTE: no mongodb so not setting install flag'
 
 def construct_arg_dict(options, guest, test_parameters, test_case, result_id, vhd_url):
     """Work out test arguments given options, guest and test parameters.
@@ -71,6 +75,8 @@ def construct_arg_dict(options, guest, test_parameters, test_case, result_id, vh
                     ov = get_build(options.machine)
             elif value == '$(RELEASE)':
                 ov = options.release
+            elif value == '$(MAC_ADDRESS)':
+                ov = options.mac_address
             elif value in specials:
                 ov = specials[value]
             elif value.startswith('$(') and value.endswith(')'):
@@ -112,7 +118,7 @@ def run_test(test_parameters, test_case, options, guest=None):
         with StdoutFilter(verbose=options.verbose) as logger:
             # XXX; we need to example arguments in test_case['description']
             # but do that in construct_arg_dict which requires result_id
-            with RecordTest(record=not options.private,
+            with RecordTest(record=options.record,
                             description=test_case['description'], 
                             build=options.build, 
                             dut=options.machine,
@@ -131,15 +137,18 @@ def run_test(test_parameters, test_case, options, guest=None):
             post_mortem(exc_info()[2])
         else:
             raise
-    
 
 def do_iteration(i, options):
     """Do one iteration of the test loop"""
-    mdb = mongodb.get_autotest()
     set_experiment_install_flag(options.machine, 
                                 (options.install_first or not 
                                  options.soak_power_level) and (i == 1))
-    dutdoc = mdb.duts.find_one({'name':options.machine}) 
+
+    try:
+        mdb = mongodb.get_autotest()
+        dutdoc = mdb.duts.find_one({'name':options.machine}) 
+    except NoMongoHost:
+        dutdoc = {'write':True}
     write = (dutdoc if dutdoc else {}).get('write')
     test_parameters = {
         'dut':options.machine, 'record': options.record,
@@ -224,6 +233,8 @@ def experiments():
     parser.add_option(
         '-b', '--build', action='store', 
         help='Have --xen-client install BUILD', metavar='BUILD')
+    parser.add_option('--mac-address', metavar='MACADDRESS', 
+                      help='Target machine has MACADDRESS (for PXE installs')
     parser.add_option(
         '--release', action='store', 
         help='Have --xen-client install RELEASE', metavar='RELEASE')
@@ -253,10 +264,7 @@ def experiments():
         '--read-test', action='store_true',
         help='Do a read test when installing VHDs')
     parser.add_option(
-        '--private', action='store_true', 
-        help='Do not store result and logs in autotest databases]')
-    parser.add_option(
-        '-r', '--record', action='store_true', help='Store records in database [default!]')
+        '-r', '--record', action='store_true', help='Store records in database')
     parser.add_option(
         '--synchronizer-name', action='store',
         help='Name of Synchronizer host to run tests against')
@@ -316,7 +324,10 @@ def experiments():
             assert branch == build_doc['branch']
     
     if options.machine:
-        validate_dut_name(options.machine)
+        try:
+            validate_dut_name(options.machine)
+        except NoMongoHost:
+            print 'NOTE: no mongodb so disabling DUT name validation'
     top_loop(options)
 
 if __name__ == '__main__': 

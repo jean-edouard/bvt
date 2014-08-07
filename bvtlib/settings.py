@@ -53,6 +53,7 @@ PXE_SERVER = None # if None, assume local access to PXE. Otherwise connect to th
 # BUILD_SERVER to a machine to inspect the PXE builds from
 
 BUILD_SERVER = None
+BUILD_PATH = None # where to find centralised builds, interpolated with branch and tag
 # If you want poller.py to detect tags set MONITORED_REPOSITORY to a git
 # repository location to look at for tags
 MONITORED_REPOSITORY = None
@@ -260,10 +261,7 @@ IRC_PASSWORD = 'XXX' # password for IRC server, only used for serverlib
 # This is used for integration with specific DHCP services
 # (and for bvt.git/allocate_ip_address.py which is site specific)
 #
-DATABASE_CREDENTIALS = {
-    'assetdb': {'host':'setme.example.com', 'pwd':'XXX'},
-    'statedb' : {'host':'setme.example.com', 'pwd': 'XXX'},
-    'configdb': {'host':'setme.example.com', 'pwd': 'XXX'}}
+DATABASE_CREDENTIALS = {}
 
 DJANGO_PASSWORD = None
 DJANGO_SECRET_KEY = None
@@ -284,4 +282,3 @@ from private_settings import *
 
 # DO NOT ADD DECLARATIONS HERE; add them before the private_settings block above
 
-assert SYNCXT_SERVER != 'XXX'

@@ -17,7 +17,7 @@
 #
 
 """Return a string describing a dut"""
-from bvtlib.mongodb import get_autotest
+from bvtlib.mongodb import get_autotest, NoMongoHost
 from bvtlib.settings import DUT_FIELDS
 
 def pretty(field, value):
@@ -29,7 +29,10 @@ def pretty(field, value):
 
 def describe_dut(dut):
     """Return a string describing a dut"""
-    dutdoc = get_autotest().duts.find_one({'name':dut})
+    try:
+        dutdoc = get_autotest().duts.find_one({'name':dut})
+    except NoMongoHost:
+        return dut
     if dutdoc is None:
         return dut
     attrs = [pretty(f, dutdoc[f]) for f in DUT_FIELDS if f in dutdoc]

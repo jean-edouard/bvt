@@ -19,8 +19,7 @@
 """PXE install build on dut"""
 from socket import gethostname
 from bvtlib.exceptions import ExternalFailure
-from bvtlib.set_pxe_build import set_pxe_build
-from bvtlib.verify_pxe_rig import verify_pxe_rig
+from bvtlib.set_pxe_build import set_pxe_build, select_build, select_variant
 from bvtlib.mongodb import get_autotest
 from bvtlib.power_control import power_cycle
 from bvtlib.dhcp import get_addresses
@@ -32,6 +31,9 @@ from multiprocessing import Process
 from bvtlib.run import SubprocessError
 from time import sleep
 from filesystem_write_access import FilesystemWriteAccess
+from bvtlib.temporary_web_server import TemporaryWebServer
+from os.path import isdir
+from urllib import urlopen
 
 class UnexpectedInstallAfterInstallation(ExternalFailure): 
     """Could not complete installation"""
@@ -58,42 +60,55 @@ def watch(host, filename):
             covered = len(content)
         sleep(2)
 
-def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False):
+def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False,
+                   mac_address=None):
     """PXE install build on dut"""
     print 'HEADLINE:', 'upgrading' if upgrade else 'installing', \
         release or build, 'XT on', dut
-    verify_pxe_rig(dut)
     if watch_tftp is None:
         watch_tftp = 'autotest' in gethostname()
-    _, dut_ip = get_addresses(dut)
-    print 'PXE_INSTALL: dut IP:', dut_ip, 'for', dut
-    dutdoc = get_autotest().duts.find_one({'name':dut})
-    target_build_info = set_pxe_build(dut, build=build, release=release, 
-                  action='upgrade' if upgrade else 'install')
-    print 'PXE_INSTALL: set PXE server'
-    if upgrade:
+    if isdir(build):
+        repository_directory = build+'/repository'
+    else:
+        build_info = select_build(build, release)
+        netboot, variant = select_variant(build_info)
+        repository_directory = build_info['build_directory']+'/repository'
+        if variant == 'kent':
+            repository_directory += '-kent'
+        print 'INFO: bi=', build_info, repository_directory
+
+    with TemporaryWebServer(path=repository_directory) as web:
+        out = urlopen(web.url+'/packages.main/XC-PACKAGES').read()
+        print 'INFO: XC-PACKAGES is', repr(out)
+
+        target_build_info = set_pxe_build(dut, build=build, release=release, 
+                      action='upgrade' if upgrade else 'install',
+                                          mac_address=mac_address,
+                                          build_url = web.url)
+        print 'PXE_INSTALL: set PXE server'
+        if upgrade:
+            try:
+                platform_transition(dut, 'reboot')
+            except SubprocessError:
+                print 'HEADLINE: unable to contact', dut, 'to do clean shutodwn'
+            else:
+                wait_to_go_down(dut)
+        power_cycle(dut, pxe=True)
+        process = Process(target=watch, args=(dut, '/var/log/installer'))
+        process.start()
         try:
-            platform_transition(dut, 'reboot')
-        except SubprocessError:
-            print 'HEADLINE: unable to contact', dut, 'to do clean shutodwn'
-        else:
-            wait_to_go_down(dut)
-    power_cycle(dut, pxe=True)
-    process = Process(target=watch, args=(dut, '/var/log/installer'))
-    process.start()
-    try:
-        print 'PXE_INSTALL: waiting to come up in installer'
-        wait_to_come_up(dut, installer_okay=True, timeout=600)
-        if not is_installer_running(dut, timeout=60):
-            raise PlatformCameUpInsteadOfInstaller(dut)
-        print 'HEADLINE: SSH response from installer'
-        set_pxe_build(dut, action='boot')    
-        print 'PXE_INSTALL: set PXE back to default'
-        wait_to_come_up(dut, installer_okay=True)
-        print 'PXE_INSTALL: response from', dut
-        found = get_build_number_branch(dut, timeout=3600)
-    finally:
-        process.terminate()
+            print 'PXE_INSTALL: waiting to come up in installer'
+            wait_to_come_up(dut, installer_okay=True, timeout=600)
+            if not is_installer_running(dut, timeout=60):
+                raise PlatformCameUpInsteadOfInstaller(dut)
+            print 'HEADLINE: SSH response from installer'
+            set_pxe_build(dut, action='boot')
+            print 'PXE_INSTALL: set PXE back to default'
+            wait_to_come_up(dut, installer_okay=True)
+            print 'PXE_INSTALL: response from', dut
+            found = get_build_number_branch(dut, timeout=3600)
+        finally:
+            process.terminate()
     if found:
         bn, br= found
         print 'PXE_INSTALL:', dut, 'now has', bn, br, 'installed'
@@ -101,7 +116,7 @@ def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False
                                    target_build_info and target_build_info.get('tag') else None)
         if tag and (bn not in tag or br not in tag):
             raise UnexpectedInstallAfterInstallation(
-                'found=',bn,br,'wanted=',build,'on',dut)
+                'found=', bn, br, 'wanted=', build, 'on', dut)
     else:
         raise UnableToContactAfterInstallation('wanted=',build,'on',dut)
     print 'HEADLINE: succesfully', 'upgraded' if upgrade else 'installed', \
@@ -115,7 +130,7 @@ XT_INSTALL_TEST_CASE = {
     'function' : pxe_install_xc, 'bvt':True,
     'command_line_options': ['-X', '-x', '--install-xt'],
     'arguments' : [('dut','$(DUT)'), ('build', '$(BUILD)'), ('release', '$(RELEASE)'),
-                   ('upgrade', False)]}
+                   ('upgrade', False), ('mac_address', '$(MAC_ADDRESS)')]}
 
 
 TEST_CASES = [ XT_INSTALL_TEST_CASE,

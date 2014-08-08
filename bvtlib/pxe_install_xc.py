@@ -103,13 +103,18 @@ def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False
                 raise PlatformCameUpInsteadOfInstaller(dut)
             print 'HEADLINE: SSH response from installer'
             set_pxe_build(dut, action='boot')
-            print 'PXE_INSTALL: set PXE back to default'
-            wait_to_come_up(dut, installer_okay=True)
-            print 'PXE_INSTALL: response from', dut
-            found = get_build_number_branch(dut, timeout=3600)
+            print 'INFO: set PXE back to default'
+            wait_to_come_up(dut, installer_okay=False, timeout=3600)
+            print 'INFO: response from', dut
+            if not isdir(build):
+                found = get_build_number_branch(dut, timeout=3600)
+            else:
+                found = True
         finally:
             process.terminate()
-    if found:
+    if found == True:
+        pass
+    elif found:
         bn, br= found
         print 'PXE_INSTALL:', dut, 'now has', bn, br, 'installed'
         tag = build if build else (target_build_info['tag'] if 

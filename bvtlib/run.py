@@ -56,7 +56,7 @@ def run(args, timeout=60, host=None, split=False, word_split=False,
         cwd=None, user=None, env={}, shell=False, stderr=False,  echo=False, 
         verbose=True, announce_interval = 20, wait=True,
         stdin_push='', output_callback=None, 
-        error_callback=None, check_host_key=True):
+        error_callback=None, check_host_key=False):
     """Run command with args, or raise SubprocessTimeout after timeout seconds.
 
     If host is specified, ssh to that machine. Let's hope your ssh configuration
@@ -253,7 +253,7 @@ def islink(filename, **args):
     return statcheck(filename, lambda x: x[1][-2:] == ['symbolic', 'link'], 
                      **args)
 
-def readfile(filename, host=None, user='root', **args):
+def readfile(filename, host=None, user='root', check_host_key=False, **args):
     """Return contents of filename on host"""
     if host == None:
         return file(filename, 'rb').read()
@@ -262,7 +262,10 @@ def readfile(filename, host=None, user='root', **args):
         verify_connection(host, user, timeout=10)
         if '.' not in host:
             host += TEST_MACHINE_DOMAIN_POSTFIX
-        run(['scp', user+'@'+host+':'+filename, temp], env=None, **args)
+        nargs = ['scp', user+'@'+host+':'+filename, temp]
+        if not check_host_key:
+            nargs = nargs[:1]+['-oStrictHostKeyChecking=no', '-oUserKnownHostsFile=/dev/null']+nargs[1:]
+        run(nargs, env=None, **args)
         return file(temp, 'rb').read()
     finally:
         unlink(temp)
@@ -307,12 +310,14 @@ def specify(**options):
     return subrun
 
 
-def verify_connection(host, user, timeout=60, check_host_key=True):
+def verify_connection(host, user, timeout=60, check_host_key=False):
     """Verify that we can connect to host as user"""
     def go():
         run(['true'], verify=False, host=host, user=user, timeout=5, check_host_key=check_host_key)
     try:
         retry(go, 'run true on '+host, timeout=timeout)
+    except AssertionError:
+        raise
     except Exception,exc:
         print 'RUN: first stage verify failed with', exc
     else:

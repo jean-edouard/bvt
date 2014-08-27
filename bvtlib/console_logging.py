@@ -32,7 +32,6 @@ HOSTNAME = gethostname()
 
 def do_syslog_tail(dut):
     """Tail syslog on dut"""
-             
 
 def do_logging(dut, result_id):
     """Perform logging"""

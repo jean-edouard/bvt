@@ -19,9 +19,16 @@
 from pymongo import Connection, DESCENDING, ASCENDING
 
 from bvtlib.settings import MONGODB_HOST, MONGODB_DATABASE, TRACK_DATABASE, LOGGING_DATABASE
+
+class NoMongoHost(Exception):
+    """No mongodb host supplied"""
+
 CONNECTIONS = {}
 
 def open(name):
+    if MONGODB_HOST is None:
+        raise NoMongoHost()
+
     cur = CONNECTIONS.get(name)
     if name not in CONNECTIONS:
         CONNECTIONS[name] = Connection(MONGODB_HOST)[name]

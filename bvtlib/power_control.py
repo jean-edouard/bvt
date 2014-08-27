@@ -29,6 +29,7 @@ from bvtlib.retry import retry
 from bvtlib import call_exec_daemon, wait_for_windows, domains
 from bvtlib.snmp_apc import PDU
 from re import match
+from bvtlib.mongodb import NoMongoHost
 
 class NoPowerControl(Exception): 
     """No power control is defined for DUT"""
@@ -66,7 +67,10 @@ def get_power_control_type(dut):
 
 def set_power_state(dut, state, args):
     """Set AMT state"""
-    pcontrol = get_power_control_type(dut)
+    try:
+        pcontrol = get_power_control_type(dut)
+    except NoMongoHost:
+        pcontrol = 'manual'
     APC_match = match('snmp-apc:(.+?):(.+)', pcontrol)
     if APC_match is not None:
         switcher = APC_match.group(1)

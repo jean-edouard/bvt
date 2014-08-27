@@ -20,22 +20,25 @@ from bvtlib.retry import retry
 from twisted.internet import defer
 import os, cStringIO
 from settings import PXE_DIR, PXE_SERVER, PASSWORD_HASH, \
-    RECOVERY_PUBLIC_KEY, RECOVERY_PRIVATE_KEY
-from os.path import join, exists, split 
+    RECOVERY_PUBLIC_KEY, RECOVERY_PRIVATE_KEY, BUILD_PATH
+
+from os.path import join, exists, split
+from os import unlink
 from bvtlib.run import isdir, islink, run, isfile, readfile, writefile, \
     SubprocessError
+from re import match
 from bvtlib.exceptions import ExternalFailure
 from bvtlib.database_cursor import open_state_db
 from bvtlib.exceptions import ExternalFailure
 from subprocess import Popen, PIPE
 from infrastructure.xt.get_build_info import get_build_info
 from infrastructure.xt.find_build import find_build
-from infrastructure.xt.inspect_build import inspect_build
+from infrastructure.xt.inspect_build import inspect_build, populate
 from infrastructure.xt.generate_pxe_files import generate_pxelinux_cfg, \
     atomic_write, write_netboot
 from infrastructure.xt.decode_tag import extract_branch
 from infrastructure.xt.releases import scan_releases
-
+from bvtlib.dhcp import get_addresses
 class InvalidAction(Exception): pass
 class UnknownRelease(ExternalFailure):
     """release not known"""
@@ -45,6 +48,10 @@ class MissingBootFile(ExternalFailure):
 
 class UnknownBuild(ExternalFailure):
     """build not known"""
+
+class PxeServerDirectoryUnspecified(Exception):
+    """PXE server directory unspecified"""
+
 
 INSTALLER_STATUS_REPORT = """<interactive>true</interactive>
 HEADLINE<preinstall>#!/bin/ash
@@ -62,7 +69,7 @@ touch /config/ssh_enabled
 <password>%s</password>
 <recovery-public-key>%s</recovery-public-key>
 <recovery-private-key>%s</recovery-private-key>
-""" % (PASSWORD_HASH, PUBLIC_KEY, PRIVATE_KEY)
+""" % (PASSWORD_HASH, RECOVERY_PUBLIC_KEY, RECOVERY_PRIVATE_KEY)
 
 PXE_CONFIG_START = """default autotest
 prompt 1
@@ -91,18 +98,24 @@ echo finishing postcommit >&2
 class AmbiguousRequest(Exception):
     """Please specify only one of release or build"""
 
-def pxe_filename(dut): 
-    return join(PXE_DIR, 'autotest', dut+'.cfg')
+class InvalidMacAddress(Exception):
+    """Mac address is invalid"""
 
-
-def restore_pxe_menu(dut):
-    """Restore PXE menu for dut"""
-    return retry(lambda:  run( 
-            ['ln', '-s', '-f', '../latestbuilds/pxelinux.cfg', 
-             pxe_filename(dut)], host=PXE_SERVER), 'set PXE symlink', 
-            catch=[SubprocessError])
+def pxe_filename(dut, mac_address): 
+    """Work out the full pathname to the file that pxelinux will read from the server"""
+    if not PXE_DIR:
+        raise PxeServerDirectoryUnspecified()
+    if mac_address is None:
+        mac_address, _ = get_addresses(dut)
+    mac_address_munged = mac_address.lower().replace(':', '-')
+    if not match('([0-9a-f]{2}-){5}([0-9a-f]{2})', mac_address_munged):
+        raise InvalidMacAddress(mac_address_munged)
+    return join(PXE_DIR, 'pxelinux.cfg', '01-'+mac_address_munged)
 
 class NoTFTPActivityTimeout(Exception):
+    pass
+
+class InvalidBuildTree(Exception):
     pass
 
 def last_tftp_file(dut_ip):
@@ -136,13 +149,20 @@ def select_build(build, release):
     if release and build:
         raise AmbiguousRequest(build, release)
     if build:
-        branch = extract_branch(build)
-        print 'HEADLINE: setting PXE to install', build, 'on', branch
-        orig_build_directory = find_build(branch, build)
-        print 'INFO: build is located at', orig_build_directory
-        bi =  inspect_build(orig_build_directory, build)
-        if bi == []:
-            raise UnknownBuild(branch, build, orig_build_directory)
+        if isdir(build):
+            print 'INFO: using', build, 'directory for build'
+            bi = inspect_build(build, None)
+            if len(bi) != 1:
+                raise InvalidBuildTree(build, len(bi))
+        else:
+            branch = extract_branch(build)
+            print 'HEADLINE: setting PXE to install', build, 'on', branch
+            orig_build_directory = find_build(branch, build, 
+                                              build_path=BUILD_PATH)
+            print 'INFO: build is located at', orig_build_directory
+            bi = inspect_build(orig_build_directory, build)
+            if bi == []:
+                raise UnknownBuild(branch, build, orig_build_directory)
         return bi[0]
     else:
         assert release
@@ -151,25 +171,7 @@ def select_build(build, release):
                 return releasec
         raise UnknownRelease(release)
 
-def set_pxe_build(dut, build=None, release=None, action='install'):
-    """Set dut to do action using build when it PXE boots"""
-    assert dut
-    print 'PXE_INSTALL:', action, 'for', release or build, 'on', dut
-    if action == 'boot':
-        print 'PXE_INSTALL: booting'
-        assert build is None
-
-    print 'PXE_INSTALL: setting PXE auto-run build for', dut, 'to', \
-        release or build
-    autopxe = pxe_filename(dut)
-    print 'PXE_INSTALL: autopxe is', autopxe
-    if build is None and release is None:
-        print 'INFO: restoring PXE menu'
-        restore_pxe_menu(dut)
-        return
-    build_info = select_build(build, release)
-    print 'INFO: installing from', build_info['build_directory']
-    print 'PXE_INSTALL: build info', build_info
+def select_variant(build_info):
     kent_variant = [v for v in build_info['variants'] if v['kind'] == 'kent']
     plain_variant = [v for v in build_info['variants'] if v['kind'] == 'plain']
     if kent_variant:
@@ -181,22 +183,54 @@ def set_pxe_build(dut, build=None, release=None, action='install'):
         netboot = plain_variant[0]['netboot']
         variant = 'plain'
         print 'INFO: using plain variant'
-    ansdir_tftp = join('autotest', dut) + '/' + netboot
+    return netboot, variant
+
+def set_pxe_build(dut, build=None, release=None, action='install', mac_address=None,
+                  build_url=None):
+    """Set dut to do action using build when it PXE boots"""
+    assert dut
+    print 'PXE_INSTALL:', action, 'for', release or build, 'on', dut
+    if action == 'boot':
+        print 'PXE_INSTALL: booting'
+        assert build is None
+
+    print 'PXE_INSTALL: setting PXE auto-run build for', dut, 'to', \
+        release or build
+    autopxe = pxe_filename(dut, mac_address)
+    if exists(autopxe):
+        unlink(autopxe)
+    print 'INFO: pxe file location is', autopxe
+    if build is None and release is None:
+        print 'INFO: removing PXE file'
+        if exists(autopxe):
+            unlink(autopxe)
+        return
+    ansdir_tftp = join('autotest', dut) 
     ansdir = join(PXE_DIR, ansdir_tftp)
+    partial_build_info = select_build(build, release)
+    if build_url:
+        partial_build_info['NETBOOT_URL'] = build_url
+    partial_build_info['TFTP_PATH'] = ansdir_tftp+'/@netboot@'
+    build_info = populate(partial_build_info)
+
+    print 'INFO: installing from', build_info['build_directory']
+    print 'PXE_INSTALL: build info', build_info
+    netboot, variant = select_variant(build_info)
+
     print 'INFO: answer file TFTP directory path', ansdir_tftp
     atomic_write(autopxe, 'default '+build_info['alias']+('-u' if action=='upgrade' else '') +'\n'+
-                 generate_pxelinux_cfg(build_info, tftp_path=ansdir_tftp))
+                 generate_pxelinux_cfg(build_info), verbose=True)
     with file(autopxe, 'r') as fin:
         for line in fin.readlines():
             print 'PXE: PXE line', line
-    write_netboot(build_info, split(ansdir)[0],
-                  tftp_path=ansdir_tftp, kind=variant,
+    write_netboot(build_info, ansdir,
+                  kind=variant,
                   ansfile_filter=
                   lambda x: INSTALLER_STATUS_REPORT if
                     action == 'ssh' else
                       x.replace('</postinstall>', ANSWERFILE_ENDING),
                   ansfile_glob='network.ans')
-    with file(ansdir+'/network.ans', 'r') as fin:
+    with file(ansdir+'/'+netboot+'/network.ans', 'r') as fin:
         for line in fin.readlines():
             print 'PXE: answerfile line', line
     return build_info

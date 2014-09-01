@@ -139,7 +139,10 @@ def watch_space(host, path, period=1.0):
 def download_image(dut, kind, guest, dest_file, vhd_url=None):
     """Download a standard BVT image"""
     # wget fails if target exists, so make sure it doesn't
-    build = get_build(dut)
+    if kind == 'with_tools':
+        build = get_build(dut)
+    else:
+        build = None
     base = find_base(kind, guest, build)
     url = vhd_url if vhd_url else base
     print 'INSTALL_GUEST: downloading', url, 'as', dest_file

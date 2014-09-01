@@ -73,9 +73,13 @@ def ensure(dut, guest, busy_stop=True):
             maybe_kill_prompt_remover(dut, guest, vm_address)
             return vm_address
 
-    with_tools_vhd = VHD_WITH_TOOLS_PATTERN % {'build':build, 'name': os_name, 
+    if VHD_WITH_TOOLS_PATTERN:
+        with_tools_vhd = VHD_WITH_TOOLS_PATTERN % {'build':build, 'name': os_name, 
                                                'encrypted':''}
-    suitable = exists(with_tools_vhd)
+        suitable = exists(with_tools_vhd)
+    else:
+        print 'INFO: set VHD_WITH_TOOLS_PATTERN to enable use of VHDs with tools installed'
+        suitable = False
     if suitable:
         age = (time() - (stat(with_tools_vhd).st_ctime)) / (24*60*60.0)
         print 'INFO: found prepared VHD', with_tools_vhd, 'which is', age, 'days old'

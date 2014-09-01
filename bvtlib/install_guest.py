@@ -264,9 +264,6 @@ def do_guest_install(dut, kind, guest, encrypt_vhd=False, busy_stop=False, vhd_u
         """vhd_path is now known"""
         if kind in ['vhd', 'with_tools']:
             download_image(dut, kind, guest, vhd_path, vhd_url)
-        build = try_get_build(dut)
-        md5sum_file = '/home/'+find_base(kind, guest, build)+'.md5sum'
-        
     iso_name = ('xc-tools' if kind  != 'iso' else os_name)+'.iso'
     print 'INSTALL_GUEST: using', iso_name, 'for', kind, guest
     vm_address = create_vm(dut, guest, iso_name=iso_name, 

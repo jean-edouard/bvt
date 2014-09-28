@@ -1,4 +1,4 @@
-#! /scratch/autotest_python/bin/python
+#!/usr/bin/python
 #
 # Copyright (c) 2014 Citrix Systems, Inc.
 # 
@@ -23,7 +23,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.context_processors import csrf
 from serverlib import constraints
-import argparse, bvtlib.mongodb, pymongo, bvtlib.process_result, sys
+import argparse, src.bvtlib.mongodb, pymongo, src.bvtlib.process_result, sys
 import nevow.flat
 from nevow.tags import hr, td, a, h1, h2, ol, li, tr, table, th, div, title, p, br, form, input as stan_input, option, select
 from pymongo import ASCENDING, DESCENDING
@@ -89,7 +89,7 @@ def testXbuild_grid(argsdict, request=None):
     tests = set()
     build_ids = []
 
-    mongo = bvtlib.mongodb.get_autotest()
+    mongo = src.bvtlib.mongodb.get_autotest()
     branch = argsdict['branch'] if 'branch' in argsdict else 'master'
     builds_query = {'branch': branch}
 

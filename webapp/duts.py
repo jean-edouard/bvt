@@ -19,7 +19,7 @@
 """Show duts"""
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from bvtlib.mongodb import get_autotest
+from src.bvtlib.mongodb import get_autotest
 from pymongo import DESCENDING, ASCENDING
 from serverlib.tags import html_fragment, td, a, \
     stan_input, div, h2, ol, li, tr, form, em, pre
@@ -30,11 +30,11 @@ from django.core.context_processors import csrf
 from subprocess import Popen, PIPE
 from os import getuid
 from pwd import getpwuid
-from bvtlib.set_pxe_build import set_pxe_build
+from src.bvtlib.set_pxe_build import set_pxe_build
 CONNECTION = get_autotest()
 
 INSTRUCTIONS = [
-    h2['XenClient test laptop control'],
+    h2['OpenXT test laptop control'],
     ol[li['To allocate yourself a laptop: type your email address ',
           'in to the owner column and hit change.'],
        li['To release a laptop for scheduled tests and BVT: ',
@@ -145,7 +145,7 @@ def duts(request, constraint):
                     value = request.POST[field]
                     update[field] = value
             CONNECTION.duts.update( query, {'$set': update})
-            # this fails since set_pxe_build calls bvtlib.run.run which
+            # this fails since set_pxe_build calls src.bvtlib.run.run which
             # uses signals and so can only run from main loop
             # so instead we rely on people to clear up the PXE server
             # if not update['run_bvt']:

@@ -171,7 +171,7 @@ class Command:
         self.loghandle = file(self.logfile, "w")
         print "Starting %s... " % (self.command)
         loglocal("Starting %s... " % (self.command))
-        self.process = subprocess.Popen(string.split(self.command),
+        self.process = subprocess.Popen(self.command,
                                         stdin=None,
                                         stdout=self.loghandle,
                                         stderr=subprocess.STDOUT,

@@ -17,7 +17,7 @@
 #
 
 from os.path import split, join
-from bvtlib.settings import DJANGO_ADMINS, DJANGO_PASSWORD,  DJANGO_SECRET_KEY
+from src.bvtlib.settings import DJANGO_ADMINS, DJANGO_PASSWORD,  DJANGO_SECRET_KEY
 WEB_DIR, _ = split(__file__)
 
 DEBUG = True
@@ -28,7 +28,7 @@ MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'resultsdb',
         'USER': 'resultsdb',
         'PASSWORD': DJANGO_PASSWORD,
@@ -96,8 +96,6 @@ TEMPLATE_LOADERS = (
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.middleware.csrf.CsrfResponseMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 )

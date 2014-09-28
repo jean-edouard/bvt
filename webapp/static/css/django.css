@@ -768,8 +768,9 @@ a:visited { color: #000080 }
 .progress { background-color: #ddd }
 .known { background-color: #ffbf00 }
 .pass { background-color: #cfc }
+.running { background-color: #ff0 }
 .day_heading { background-color: #c0c0c0 }
-
+.step_cell { text-align: right;}
 .postmessage { background-color: #faebd7; color: #000; border-style: solid; padding: 1em }
 .CONSOLE { background-color: #333; color: #ff0 }
 .HEADLINE { background-color: #ff0; color: #000 }

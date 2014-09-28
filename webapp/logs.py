@@ -19,10 +19,11 @@
 """Render a log segment to HTML"""
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from pymongo import ASCENDING, objectid
-from bvtlib.settings import DEFAULT_LOGGING
-from bvtlib.record_test import recount
-from bvtlib import mongodb 
+from pymongo import ASCENDING
+from bson import objectid
+from src.bvtlib.settings import DEFAULT_LOGGING
+from src.bvtlib.record_test import recount
+from src.bvtlib import mongodb 
 from serverlib.tags import html_fragment, div, span, a, tr, form, stan_input, em
 from serverlib import show_table, constraints
 import time

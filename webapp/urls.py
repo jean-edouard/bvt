@@ -34,4 +34,5 @@ urlpatterns = patterns('',
     (r'^bin/([a-z\.]+)', 'webapp.binaries.binaries'),
     (r'^grid'+constraint, 'webapp.grid.grid'),
     (r'(django.css)', 'webapp.binaries.binaries'),
-    (r'^([a-z0-9A-Z\-\.]+)/([a-z0-9A-Z\-]+)$', 'webapp.redirects.build'))
+    (r'^([a-z0-9A-Z\-\.]+)/([a-z0-9A-Z\-]+)$', 'webapp.redirects.build'),
+    (r'^run_results'+constraint, 'webapp.run_results.view_run_results_table'))

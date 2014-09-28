@@ -18,6 +18,9 @@
 
 """Produce paginated tables"""
 from serverlib.tags import space_span, table, a, tr, td, th
+from src.bvtlib import mongodb
+import time
+
 
 def show_table(headings, rows, offset, show_rows, cross_reference, complete=False,
                show_nav=True):
@@ -38,6 +41,12 @@ def add_td(x):
     else: 
         return td[x]
 
+def add_ts(x):
+    if repr(x).startswith("Tag('td'"): 
+        return x
+    else: 
+        return td(**{'class':'step_cell'})[x]
+
 def normalise(x):
     if type(x) == type(''):
         return (x, lambda row: row.get(x, '-'))
@@ -55,6 +64,24 @@ def produce_table(cursor, columns, cross_reference, offset=0, show_rows=20,
                      _,fn in col2]))
     return show_table(headings, rows, offset, show_rows, cross_reference, show_nav=show_nav)
 
+# Modification of produce table that generates extra rows for each step of
+# the test suite.  Links from the main /results page.
+def suite_table(cursor, columns, cross_reference, offset=0, show_rows=20,
+                row_fn=lambda doc, body: tr[body],
+                show_nav=True):
+    col2 = [ normalise(c) for c in columns]
+    headings = tr[[ th[l] for l, _ in col2]]
+    rows = []
+    mdb = mongodb.get_autotest()
+    for doc in cursor:
+        rows.append(row_fn(doc, [add_td(fn(doc)) for _,fn in col2]))
+        for i in range(doc['steps']):
+            rows.append(row_fn(doc, [add_ts('step'+str(i)), add_td(doc['step'+str(i)]),
+                                add_td(''.join(mdb.suites.find_one({'name':doc['suite']})['s-%s'%str(i)])),
+                                add_td(time.asctime(time.localtime(doc['step%s-start'%str(i)]))),
+                                add_td(time.asctime(time.localtime(doc['step%s-end'%str(i)]))),
+                                add_td(doc['step%s-reason'%str(i)])], str(i)))
+    return show_table(headings, rows, offset, show_rows, cross_reference, show_nav=show_nav)
         
 def simple_table(cursor, columns):
     return produce_table(cursor, columns, show_nav=False, cross_reference=None, show_rows=1e9)

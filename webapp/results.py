@@ -20,7 +20,7 @@
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from pymongo import ASCENDING, DESCENDING
-from bvtlib import mongodb
+from src.bvtlib import mongodb
 from serverlib import show_table, constraints
 from serverlib.tags import a, div, tr, html_fragment
 import time
@@ -91,12 +91,13 @@ def view_results_table(request, constraint):
         query = {'$or': [query, q2]}
     cursor = CONNECTION.results.find(query, limit=limit, 
                                      skip=offset).sort(
-                'start_time', DESCENDING if reverse else ASCENDING)
-    
+                'start_time', DESCENDING if reverse else ASCENDING) 
+
     lookup = lambda term: constraints.lookup('/results', oquery, term)
     result_columns = [ 
         ('mode', lambda x: 'DEVELOPMENT' if x.get('development_mode') 
          else 'PRODUCTION'),
+        ('Test Suite/Step information', lambda x: a(href='/run_results/result_id='+str(x['_id']))[str(x['_id'])]),
         lookup('test_case'),
         ('start time',  lambda x: time.asctime(
                 time.localtime(x.get('start_time')))),

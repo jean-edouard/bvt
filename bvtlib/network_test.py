@@ -16,22 +16,110 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-"""Run netperf on dom0 and guests"""
+"""Run iperf on dom0 and guests"""
 from bvtlib.exceptions import ExternalFailure
 from bvtlib.retry import retry
 from bvtlib.domains import list_vms
-from bvtlib.run import isfile, specify, SubprocessError
+from bvtlib.run import isfile, run
 from bvtlib.call_exec_daemon import call_exec_daemon, run_via_exec_daemon
 from bvtlib.wait_for_windows import wait_for_windows
-from bvtlib.settings import NETPERF_LINUX_DISTRIBUTION_URL, \
-    NETPERF_WINDOWS_DISTRIBUTION_URL
+from bvtlib.settings import IPERF_LINUX32_DOWNLOAD, IPERF_LINUX64_DOWNLOAD
+from bvtlib.settings import IPERF_WINDOWS_DOWNLOAD
 from socket import gethostname
+from multiprocessing import Process
+from zipfile import ZipFile
+# unfotunately the name open in tarfile clashes with builtins so import
+# whole module
+import tarfile
+from hashlib import sha1
+from bvtlib.temporary_web_server import TemporaryWebServer
+from tempfile import mkdtemp
 
-class PoorNetworkPerformance(ExternalFailure): 
+class NoIperfBinaryForUnameOutput(ExternalFailure):
+    """Logic to select iperf version did not recognise version"""
+
+class PoorNetworkPerformance(ExternalFailure):
     """Network performance was unacceptable"""
 
-class CouldNotUnpackNetperf(Exception):
-    """Failed to unpack and install netperf binaries"""
+class DidNotFindExpectedIperfBinary(Exception):
+    """Did not find expected iperf binary"""
+
+class IperfTransferError(ExternalFailure):
+    """Failed to get iperf on to target machine"""
+
+def get_linux_iperf(host=None):
+    """Get iperf binary on to host and return its path on that host"""
+    iperf = '/tmp/iperf'
+    arch = run(['uname', '-a'], host=host)
+    print 'INFO: got uname -a output', arch
+    if 'i686' in arch:
+        download = IPERF_LINUX32_DOWNLOAD
+    elif 'x86_64' in arch:
+        download = IPERF_LINUX64_DOWNLOAD
+    else:
+        raise NoIperfBinaryForUnameOutput(arch)
+    if isfile(iperf, host=host):
+        print 'INFO: already had iperf for', host
+    else:
+        if not isfile(iperf, host=host):
+            run(['wget', '--no-check-certificate', '-O', iperf, download[0]], host=host)
+    sha256sum =run(['sha256sum', iperf], word_split=True, host=host)[0]
+    if download[1] != sha256sum:
+        raise DidNotFindExpectedIperfBinary('want', download,
+                                            'have', sha256sum)
+    run(['chmod', '+x', iperf], host=host)
+    return iperf
+
+def get_windows_iperf(host, destd='C:/iperf'):
+    """Put iperf on host at destd"""
+    iperf_local = '/tmp/iperf_win.zip'
+    if not isfile(iperf_local):
+        run(['wget', '--no-check-certificate', '-O', iperf_local,
+             IPERF_WINDOWS_DOWNLOAD[0]])
+    sha256sum = run(['sha256sum', iperf_local], word_split=True)[0]
+    if sha256sum != IPERF_WINDOWS_DOWNLOAD[1]:
+        raise DidNotFindExpectedIperfBinary('have', sha256sum,
+                                            'want', IPERF_WINDOWS_DOWNLOAD)
+    with ZipFile(iperf_local) as zipobj:
+        tempd = mkdtemp(suffix='.iperf.tar')
+        with tarfile.open(name=tempd+'/iperf.tar', mode='w') as tarobj:
+            for zipinfo in zipobj.infolist():
+                print 'TRANSFER: transferring %s (%dKB)' % (
+                    zipinfo.filename, zipinfo.file_size/1024)
+                tarinfo = tarfile.TarInfo(zipinfo.filename)
+                tarinfo.size = zipinfo.file_size
+                tarobj.addfile(tarinfo, zipobj.open(zipinfo.filename))
+        with TemporaryWebServer(tempd) as web:
+            call_exec_daemon('unpackTarball', [web.url + '/iperf.tar',
+                                               'C:/iperf'], host=host)
+        for zipinfo in zipobj.infolist():
+            destf = destd+'/'+zipinfo.filename
+            if zipinfo.file_size == 0:
+                continue
+            print 'TRANSFER: checking', destf, zipinfo.file_size
+            have = call_exec_daemon('sha1Sum', [destf], host=host)
+            want = sha1(zipobj.open(zipinfo.filename).read()).hexdigest()
+            if have != want:
+                raise IperfTransferError(destf, 'have', have, 'want', want)
+            print 'TRANSFER: Correctly transferred', destf, 'hash', have
+    return destd+'/iperf.exe'
+
+
+class IperfServer:
+    """Run an iperf server in a separate process"""
+    def __init__(self, host, iperf_path):
+        self.host = host
+        self.iperf_path = iperf_path
+    def __enter__(self):
+        self.process = Process(target=self.run)
+        self.process.start()
+        print 'INFO: launched iperf server'
+    def __exit__(self, *_):
+        self.process.terminate()
+        self.process.join()
+    def run(self):
+        """In the subprocess actually launch iperf"""
+        run([self.iperf_path, '-s'], host=self.host)
 
 def network_test(host, description, duration=1, windows=False):
     """Test networking performance"""
@@ -43,69 +131,20 @@ def network_test(host, description, duration=1, windows=False):
                 continue
             print 'check', domain
             vm_address = wait_for_windows(host, domain['name'], timeout=1200)
-            
             network_test(vm_address, domain['name'], windows=True)
         return
-    if windows:
-        if call_exec_daemon('fileExists', ['C:/netperf/netclient.exe'], 
-                            host=host):
-            print 'INFO: already had netperf on', description
-        else:
-            print 'INFO: installing netperf for', description
-            try:
-                call_exec_daemon('unpackTarball', 
-                                 [NETPERF_WINDOWS_DISTRIBUTION_URL, 'C:\\'],
-                                 host=host)
-            except Exception, exc:
-                raise CouldNotUnpackNetperf(host, exc)
-        netperf = 'C:/netperf/netclient.exe'
-    else:
-        netperf = '/tmp/usr/local/bin/netperf' 
-        go = specify(host=host, cwd='/')
-        if (isfile(netperf, host=host)):
-            print 'INFO: already had netperf for', description
-        else:
-            filename = '/tmp/netperf.linux.tar.gz'
-            if not isfile(filename, host=host):
-                go(['wget', '-O', filename, NETPERF_LINUX_DISTRIBUTION_URL])
-                go(['gunzip', '-f', filename])
-            go(['tar', 'xvf', filename.replace('.gz', '')], cwd='/tmp')
-            if not isfile(netperf, host=host):
-                raise CouldNotUnpackNetperf(host, netperf)
-    for test in ['TCP_STREAM -- -m 65536 -s 65536 -S 65536 -r 65536 -M 65536', 
-                 'TCP_RR', 'TCP_CRR',
-                 #'UDP_STREAM', 'UDP_RR'
-                 ]:
-        tdes = test.split()[0]
-        print 'INFO: testing', test, 'traffic in', description
-        command = [netperf, '-l', str(duration), '-H',  
-                   gethostname(), '-t'] + test.split()
-        if windows:
-            callback = lambda: run_via_exec_daemon(command, host=host)
-        else:
-            callback = lambda: go(command)
-        out = retry(callback, description='run netperf', timeout=600.0, 
-                    catch=[SubprocessError])
-        spl = out.split()
-        if 'STREAM' in test:
-            result = eval(spl[-1])
-            good = lambda x: x > 10
-            units = 'megabits/second'
-        else:
-            result = 0.5e6 / eval(spl[-3])
-            good = lambda x: x < (500000 if 'CRR' not in test else 500000)
-            units = 'microseconds'
-        print 'INFO: netperf', tdes, 'result', result, units, \
-            'from', description
-        if not good(result):
-            raise PoorNetworkPerformance(description, tdes, result, units)
+    iperf_client = get_windows_iperf(host) if windows else get_linux_iperf(host)
+    with IperfServer(None, get_linux_iperf(None)):
+        args = [iperf_client, '-c', gethostname(), '-t', str(duration)]
+        out = (run_via_exec_daemon if windows else run)(args, host=host)
+        print 'INFO: iperf reports', out
 
 def network_test_dom0(dut, description, duration=1):
-    """Run netperf from dom0"""
+    """Run iperf from dom0"""
     return network_test(dut, description, duration)
 
 def network_test_guest( dut, guest, description, duration=1):
-    """Run netperf from windows guest"""
+    """Run iperf from windows guest"""
     address = wait_for_windows(dut, guest)
     return network_test(address, description, duration, windows=True)
 

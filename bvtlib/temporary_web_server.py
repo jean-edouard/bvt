@@ -14,9 +14,7 @@ class TemporaryWebServer:
     """Run a temporary web server in this context manager, serving contents
     at path."""
     def __init__(self, path):
-        """Run a web server temporarily for files in path.
-        If enabled is False don't actually bother.
-        """
+        """Run a web server temporarily for files in path."""
         self.path = path
         self.fqdn = getfqdn()
         print 'INFO: host name', self.fqdn

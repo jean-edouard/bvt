@@ -139,7 +139,10 @@ def watch_space(host, path, period=1.0):
 def download_image(dut, kind, guest, dest_file, vhd_url=None):
     """Download a standard BVT image"""
     # wget fails if target exists, so make sure it doesn't
-    build = get_build(dut)
+    if kind == 'with_tools':
+        build = get_build(dut)
+    else:
+        build = None
     base = find_base(kind, guest, build)
     url = vhd_url if vhd_url else base
     print 'INSTALL_GUEST: downloading', url, 'as', dest_file
@@ -261,9 +264,6 @@ def do_guest_install(dut, kind, guest, encrypt_vhd=False, busy_stop=False, vhd_u
         """vhd_path is now known"""
         if kind in ['vhd', 'with_tools']:
             download_image(dut, kind, guest, vhd_path, vhd_url)
-        build = try_get_build(dut)
-        md5sum_file = '/home/'+find_base(kind, guest, build)+'.md5sum'
-        
     iso_name = ('xc-tools' if kind  != 'iso' else os_name)+'.iso'
     print 'INSTALL_GUEST: using', iso_name, 'for', kind, guest
     vm_address = create_vm(dut, guest, iso_name=iso_name, 

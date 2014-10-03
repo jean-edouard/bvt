@@ -129,8 +129,10 @@ EXPECTED_SERVICES = ['Citrix USB Service', 'Citrix Xen Guest Services',
 # 
 # binary depedency URLs
 #
-NETPERF_LINUX_DISTRIBUTION_URL = None # URL for netperf linux binaries
-NETPERF_WINDOWS_DISTRIBUTION_URL = None # URL for netperf windows binaries
+IPERF_WINDOWS_DOWNLOAD = 'https://iperf.fr/download/iperf_2.0.5/iperf-2.0.5-2-win32.zip', 'bd856c8ab60e45d4b8c59f3cbe37d80a7e8e4976e57865b3b9ecf9612110839c'
+IPERF_LINUX32_DOWNLOAD = 'https://iperf.fr/download/iperf_2.0.5/iperf_2.0.5-2_i386', 'e60858677636de976696239e1da9a620518496bc5bb5b290563acd5829501157'
+IPERF_LINUX64_DOWNLOAD = 'https://iperf.fr/download/iperf_2.0.5/iperf_2.0.5-2_amd64', '52c6b1f3181ea48213ea010f780fcea1b4d051835cc3771b5d26a17d6407bf00'
+
 AUTOIT_TAR_URL = None # URL for autoit mirror used for automated windows tools installation
 
 #

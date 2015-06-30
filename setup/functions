@@ -1,0 +1,19 @@
+#!/bin/bash
+
+prompt () {
+    select yn in "Yes" "No"; do
+        case $yn in
+            Yes ) echo "True"; break ;;
+            No ) echo "False"; break ;;
+        esac
+    done
+}
+
+is_installed () {
+	package=$1
+	pack=$(dpkg -l | grep $package)
+	case $pack in
+		"" ) echo "False" ;;
+		* ) echo "True" ;;
+	esac
+}

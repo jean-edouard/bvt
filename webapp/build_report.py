@@ -19,7 +19,7 @@
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from serverlib.tags import html_fragment, h2, a
-from bvtlib import mongodb, process_result
+from src.bvtlib import mongodb, process_result
 from serverlib import show_table, constraints, describe_build
 from webapp import status_styling
 from django.conf.urls.defaults import patterns

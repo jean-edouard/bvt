@@ -17,6 +17,7 @@ dependencies
 * psycopg2 2.2.1 or later. earlier versions have relevant bugs
 * datatables 1.6.2 (see http://datatables.net/releases/dataTables-1.6.2.zip)
 * pyasn1
+* lftp
 
 TFTP server configuration
 =========================

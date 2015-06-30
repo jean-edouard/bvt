@@ -19,8 +19,8 @@
 #pylint: disable-msg=E0611,E1103,W0611,C0103
 
 from nevow.tags import html, body, table, td, tr, a, h1, h2, h3, pre
-from nevow.tags import xml, p, span, th, div, script, head, em, strong
-from nevow.tags import form, select, option, ol, li, style, head, title
+from nevow.tags import xml, p, span, th, div, script, head, em, strong, ul
+from nevow.tags import form, select, option, ol, li, style, head, title, font
 from nevow.tags import input as stan_input
 import nevow.flat
 

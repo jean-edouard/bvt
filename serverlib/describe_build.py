@@ -20,7 +20,7 @@
 import os.path
 from nevow.stan import xml
 from serverlib.tags import space_span, script, a, em
-from bvtlib.settings import CHANGE_REPORT_DIRECTORY
+from src.bvtlib.settings import CHANGE_REPORT_DIRECTORY
 
 def describe_build(branch, build):
     """Return a nevow HTML description of a build"""

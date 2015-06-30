@@ -10,3 +10,7 @@ _trial_temp/
 /bvtlib/.links2/links.his
 *_flymkae.py
 */*_flymake.py
+cscope.*
+*.swp
+src/bvtlib/private_settings.py
+nodes/*

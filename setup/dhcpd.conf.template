@@ -1,0 +1,65 @@
+#
+# Sample configuration file for ISC dhcpd for Debian
+#
+#
+
+# The ddns-updates-style parameter controls whether or not the server will
+# attempt to do a DNS update when a lease is confirmed. We default to the
+# behavior of the version 2 packages ('none', since DHCP v2 didn't
+# have support for DDNS.)
+
+authoritative;
+# option definitions common to all supported networks...
+
+option domain-name "{DOMAIN_NAME}";
+
+option domain-name-servers ns.{DOMAIN_NAME};
+
+#ddns-updates		on;
+#ddns-update-style	interim;
+update-static-leases	on;
+
+default-lease-time 600;
+max-lease-time 7200;
+
+# If this DHCP server is the official DHCP server for the local
+# network, the authoritative directive should be uncommented.
+
+# Use this to send dhcp log messages to a different log file (you also
+# have to hack syslog.conf to complete the redirection).
+log-facility local7;
+
+#include "/etc/dhcp/ddns.key";
+
+#zone BVT.NET. {
+#	primary 127.0.0.1;
+#	key DDNS_UPDATE;
+#}
+
+#zone 1.168.192.in-addr.arpa. {
+#	primary 192.168.1.1;
+#	key DDNS_UPDATE;
+#}
+
+# No service will be given on this subnet, but declaring it helps the 
+# DHCP server to understand the network topology.
+
+allow booting;
+
+subnet {SUBNET} netmask 255.255.255.0 {
+	interface {INTERFACE};
+	option ip-forwarding off;
+	range {RANGE_LOWER} {RANGE_UPPER};
+	option subnet-mask 255.255.255.0;
+	option broadcast-address {BROADCAST};
+	option routers {ROUTERS};
+	option domain-name-servers {DNS_SERVERS};
+	filename "pxelinux.0";
+	ddns-domainname "{DOMAIN_NAME}";
+	#ddns-rev-domainname "in-addr.arpa.";
+}
+
+host {TEST_MACHINE} {
+	hardware ethernet {MAC};
+	fixed-address {STATIC_IP};
+}

@@ -19,15 +19,13 @@
 """IRC support for the results server. Here for lack of a better
 placer"""
 from twisted.words.protocols import irc
-from bvtlib import Session
-from bvtlib.settings import IRC_PASSWORD
+from src.bvtlib import Session
 import socket
 
 EX = '-dev' if 'dev' in socket.gethostname() else ''
 
 class MyIRCClient(irc.IRCClient):
     """Subclass for IRC client"""
-    password = IRC_PASSWORD
     def __init__(self, server, nickname): 
         self.server = server
         self.nickname = str(nickname)

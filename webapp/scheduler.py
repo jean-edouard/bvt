@@ -17,9 +17,9 @@
 #
 
 """Show scheduler queue and manipulate it"""
-from serverlib.tags import html_fragment, h2, form, stan_input, span
-from serverlib.tags import select, option, a, div, em
-from bvtlib import mongodb
+from serverlib.tags import html_fragment, h2, form, stan_input, span, font
+from serverlib.tags import select, option, a, div, em, ul, li, tr
+from src.bvtlib import mongodb
 from serverlib import show_table
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -27,33 +27,46 @@ from serverlib.constraints import cross_reference
 from time import time, asctime, gmtime
 from django.core.context_processors import csrf
 from re import match
-from pymongo.objectid import ObjectId
+from bson import objectid
 from pymongo import ASCENDING, DESCENDING
+from src.bvtlib.settings import TEST_NODES
 CONNECTION = mongodb.get_autotest()
+
+def status_styling(params, content):
+    if params.get('status') == 'running':
+        col = 'running'
+    elif params.get('status') == 'Fail':
+        col = 'failure'
+    elif params.get('status') == 'cancelled':
+        col = 'failure'
+    elif params.get('finish_time') and not (params.get('status') == 'Fail'):
+        col = 'pass'
+    else:
+        col = 'plain'
+    attrs = {'class':col}
+    return tr(**attrs)[content]
 
 def scheduler(request):
     """Render HTML"""
     def myform(text, *members):
         """Return an HTML POST form back to this page with CSRF support"""
-        tok = csrf(request)
         return form(method='post', action='/scheduler')[
             stan_input(type='hidden', name='operation', value=text),
-            stan_input(type='hidden', name='csrftoken', value=tok),
             list(members), stan_input(type='submit', value=text)]
     post_message = None
     if request.method == 'POST':
         operation = request.POST['operation']
         if operation == 'cancel':
             row = request.POST['id']
-            query = {'_id':ObjectId(row)}
+            query = {'_id':objectid.ObjectId(row)}
             CONNECTION.jobs.update(query, {
-                    '$set': {'status': 'cancelled via web application',
+                    '$set': {'status': 'cancelled',
                              'finish_time' : time()}})
             post_message = ['Cancelled ', row]
         elif operation == 'add to queue':
             dut = request.POST.get('dut')
             command = request.POST['command']
-            if not match('((testsuite)|(experiments))[ 0-9a-zA-Z\-]+', command):
+            if not match('((testsuite)|(experiments)|(./autolaunch.py))[ 0-9a-zA-Z\-]+', command):
                 post_message = 'invalid command '+command
             else:
                 doc = {'user': request.POST['user'], 'status':'queued',
@@ -102,14 +115,12 @@ def scheduler(request):
                         stan_input(type='hidden', name='id', 
                                    value=str(x['_id'])))))
         if title != 'Queued tests':
-            columns.append( ('log', lambda x: 
-                             a(href='/logs/job_id='+str(x['_id'])
-                               )['view']))
+            columns.append( ('log', lambda x: (a(href='/logs/result_id='+str(x['results_id']))['view']) if 'results_id' in x else (a(href='/logs/job_id='+str(x['_id']))['view'])))
             columns.append( ('finish time (UT)', lambda x:
                                  (asctime(gmtime(x['finish_time'])) if 
                                   'finish_time' in x else [])))
         queue = show_table.produce_table(
-            data, columns, cross_reference('/scheduler', {}), show_nav=False)
+            data, columns, cross_reference('/scheduler', {}), show_nav=False, row_fn = status_styling)
         queue_html += [h2[title], (queue if data else div['(none)'])]
 
     dut_options = [option(value=dut['_id'])[dut['_id']] for dut 
@@ -122,14 +133,24 @@ def scheduler(request):
                         value='arthur.dent@example.com')],
         span[' Command: ', 
              stan_input(type='text', name='command', size=70,
-                        value='experiments -n')],
+                        value='./autolaunch.py ')],
         span[' DUT: ',select(name='dut')[
                 option(selected='selected')['ANY'], dut_options]],
         span[' Timeout: ',
              stan_input(type='text', name='timeout', size=5, value='600')],
         span[' Urgent: ', stan_input(type='checkbox', name='urgent',value=1), ' '])
 
-    html = [post_html, h2['Submit test job'], submit_form, queue_html]
+    node_html = [h2['Test Nodes']]
+    ul_list = []
+    for i in range(0, TEST_NODES):
+        dut_doc = CONNECTION.duts.find_one({'num':i})
+        if dut_doc['acquired'] == True:
+            ul_list.append(li[font(color='red')[dut_doc['name']]])          
+        else:
+            ul_list.append(li[font(color='green')[dut_doc['name']]]) 
+    node_html.append(ul[ul_list])
+
+    html = [post_html, h2['Submit test job'], submit_form, node_html, queue_html]
     return render_to_response('generic.html', 
                               RequestContext(request, {
                 'content': html_fragment(html)}))

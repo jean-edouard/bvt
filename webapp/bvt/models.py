@@ -21,10 +21,10 @@ from urllib import quote
 from json import loads
 from re import compile
 
-from bvtlib.settings import GIT_REPOSITORY_URL_FORMAT, GIT_COMMIT_URL_FORMAT
-from bvtlib.settings import XENCLIENT_JSON_BUILDER, OPENGROK_URL_FORMAT
+from src.bvtlib.settings import GIT_REPOSITORY_URL_FORMAT, GIT_COMMIT_URL_FORMAT
+from src.bvtlib.settings import XENCLIENT_JSON_BUILDER
 
-from bvtlib.mongodb import get_autotest
+from src.bvtlib.mongodb import get_autotest
 db = get_autotest()
 
 
@@ -80,7 +80,7 @@ def get_build_data(build_id):
         for file in change['files']:
             f_data = {}
             f_data['path'] = file['name']
-            f_data['url'] = OPENGROK_URL_FORMAT % (c_data['rep'], f_data['path'])
+            f_data['url'] = None % (c_data['rep'], f_data['path'])
             c_data['files'].append(f_data)
         
         data['changes'].append(c_data)

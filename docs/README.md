@@ -14,6 +14,7 @@ Table of Contents
   b. Apache
   c. bvt
   d. windows guests
+  e. DDNS and Masquerading
 2. install-deps script
 3. Basic Usage
 4. Writing Your Own Test
@@ -27,7 +28,6 @@ Configuration
 =============
 
 You will need the following installed on your machine to use the full set of BVT features:
-
 
 ### TFTP and PXE
 
@@ -49,6 +49,127 @@ One of the primary use cases for OpenXT users is the ability to run virtual inst
 
 Execdaemon sets up an XML-RPC server to communicate with BVT.  Once this server is running, we can send commands to manipulate the Windows VM.  Execdaemon requires the Windows VM to have Python 2.7 and pywin32 libraries installed.  Additionally, it is useful to add a shortcut to Startup so the execdaemon is launched when the Windows VM starts.
 
+The windows guest should be configured with the following settings for optimal automation with execdaemon: 
+- UAC should be disabled
+- An entry in the primary user's startup folder should point to: runas /user:Administrator /savecred "python C:\path\to\execdaemon.py" to start execdaemon automatically on boot or login.
+  (savecred saves the Admin password for future runas calls)
+- The Administrator account should be enabled to support the above startup script. But the primary user should be set to autologin to ensure execademon is executed on startup/login and bvt can communicate with it. Modify local security policy to allow blank passwords if desired.
+- Default power button option should be shutdown (often this value is missing, defaults to hibernate with current acpi/dsdt implmenetation in hvmloader/qemu)
+
+
+### DDNS and Masquerading
+If your BVT configuration involves running a local DHCP server on your BVT machine to manage your test pool, enabling DDNS and using IP Masquerading can help guest VMs in your pool access the outside network.  To do this, we need the dnssec-tools and bind9 utilites (03-install-dhcp script will grab these).  With dnssec, generate a key so dns update clients can be authenticated.  The output will be in a file called _keyname_.
+
+```
+dnssec-keygen -a hmac-md5 -b 128 -n USER <keyname>
+```
+
+The ddns.key file should use the following syntax.  Use the hash at the end of the file generated with dnssec-keygen for the <STRING> variable.  hmac-md5 is not the only algorithm you are limited to using.
+
+```
+key keyname {
+      algorithm hmac-md5;
+      secret "<STRING>";
+}; #Where <STRING> is the key generated with dnssec-keygen
+```
+
+Next we update the dhcp.conf file with ddns specific options:
+
+```
+_ddns-updates on;_
+_ddns-update-style interim;_
+_update-static-leases on;_
+_include "/path/to/ddns.key file"_
+```
+
+We also need to define zones for reverse lookup.  For example:
+
+```
+zone BVT.LOCAL { #domain named which is defined in the domain-name option also in this file
+	primary 127.0.0.1;
+	key dhcpupdate; #this key is the name we named our key in the dnssec-keygen step
+};
+
+zone 5.168.192.in-addr.arpa {
+	primary 192.168.5.1; #addr of DHCP server
+	key dhcpupdate;
+};
+```
+
+Extra options should be added to our subnet section:
+
+```
+	ddns-domainname "bvt.local"; #or whatever your domain name is
+	ddns-rev-domainname "in-addr.arpa.";
+```
+
+Next we configure IP Masquerading.  We load a kernel module and configure some iptables options.  Either add additional iptables rules to masquerade traffic only from test machines on the subnet or ensure you are the only one with access to the BVT machine.  Otherwise, it is possible for someone else to masquerade using your BVT machine's IP.
+
+```
+modprobe ipt_MASQUERADE # If this fails, try continuing anyway
+iptables -F; iptables -t nat -F; iptables -t mangle -F
+iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to 123.12.23.43  #for static IP
+OR
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE  #for DHCP
+echo 1 > /proc/sys/net/ipv4/ip_forward
+```
+
+Next, we need to modify /etc/network/interfaces with some ddns specifc options for the interface managing the subnet:
+
+```
+iface ethX inet static
+...
+	dns-search bvt.local #or whatever your domain name is
+	dns-nameservers 192.168.5.1
+	network 182.168.5.0
+```
+
+Finally, we setup and configure bind9.  Copy the key you created with the dnssec-keygen to /etc/bind/ddns.key.  Next, edit /etc/bind/named.conf.local:
+
+```
+include "/etc/bind/ddns.key";
+
+zone "bvt.local" { #or whatever domain name is
+    type master;
+     notify no;
+     file "etc/bind/db.bvt.local";
+     allow-update {key dhcpupdate; }; #Key name should be the named defined in the key file
+     journal "/var/cache/bind/db.bvt.jnl";
+};
+
+zone "5.168.192.in-addr.arpa" {
+     type master;
+     notify no;
+     file "etc/bind/db.192.168.5";
+     allow-update {key dhcpupdate; };
+     journal "/var/cache/bind/db.192.168.5.jnl";
+};
+```
+
+Verify /etc/bind/named.conf.options is similar to the following.  Most important are the dns forwarders; just use the google public dns.
+
+```
+options {
+	directory "/var/cache/bind";
+
+	 forwarders {
+			8.8.8.8;
+			8.8.4.4;
+	 };
+	dnssec-validation auto;
+
+	auth-nxdomain no;    # conform to RFC1035
+	listen-on-v6 { any; };
+};
+```
+
+Now, restart all the relevant services:
+
+```
+/etc/init.d/networking restart
+/etc/init.d/isc-dhcp-server restart
+/etc/init.d/bind9 restart
+```
 
 install-deps
 ============
@@ -133,7 +254,7 @@ All of the following sections should be configured on the machine that will be r
 * PXE/TFTP server
 * Apache server
 * Mongodb and pymongo
-* AMT
+* AMT (now supports AMT v9.0+, over wsman)
 
 ### DHCP Server
 Any DHCP server may be used, my current setup uses the isc-dhcp-server.  It is recommended to run this server on a separate subnet as you will need full control over the configuration and deployment of the server.  If this is the case, using a separate NIC is advised. Follow the typical steps for the setup and configuration of your server.

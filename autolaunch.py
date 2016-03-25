@@ -141,7 +141,7 @@ def set_build_path(options, dut):
              '/builds/'], timeout=3600)
         mdb.duts.update({'name': dut},
                         {'$set': {'build': '/builds/'+options.build}})
-    elif os.path.exists(options.build):
+    if os.path.exists(options.build):
         mdb.duts.update({'name': dut},
                         {'$set': {'build': options.build}})
         server_set = True
@@ -226,7 +226,10 @@ def do_test_suite(ops, recording, suite):
                                    reason=repr(sys.exc_info()[1]))
             recording.failed = True
         for i in range(num_steps):
-            if suite_results['step'+str(i)] == 'FAIL':
+            if 'step'+str(i) in suite_results.keys():
+                if suite_results['step'+str(i)] == 'FAIL':
+                    fail = True
+            else:
                 fail = True
         if fail:
             print 'INFO: Suite Failed.'
@@ -385,7 +388,8 @@ def launch():
             print "INFO: Running tests %s running on node %s" \
                   % (options.suites, n)
             dutdoc = mdb.duts.find_one({'name': node['name']})
-            set_build_path(options, node['name'])
+            if options.build is not None:
+                set_build_path(options, node['name'])
             thr.append(Process(target=suite_operation,
                        args=(options, node['name'])))
     except Exception:

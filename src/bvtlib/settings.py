@@ -247,6 +247,7 @@ ENABLE_BW_TEST = True #Tell build_watcher to queue jobs on new builds by default
 PRINT_AVC = False #log avc denials by default but provides option to disable to avoid log clutter
 # You will need to override some settings here, so rather than force users
 # to modify this file we require everyone have a private_settings.py file
+VALID_OS_TYPES = ["linux", "windows"]
 from private_settings import *
 
 # DO NOT ADD DECLARATIONS HERE; add them before the private_settings block above

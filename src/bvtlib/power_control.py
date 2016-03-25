@@ -120,6 +120,18 @@ def set_power_state(dut, state, args):
                             'WHERE asset=%s', (statep, asset))
                 print '... requesting', statep
                 sleep(2)
+    elif pcontrol == 'wsman':
+        if dut+'-amt' not in run(['amtctrl list'], shell=True):
+            run(['amtctrl add '+dut+'-amt '+dut+'-amt ' + AMTENV['AMT_PASSWORD']], shell=True)
+        if 'powerdown' in args:
+            run(['amtctrl '+dut+'-amt off'], shell=True)
+        elif 'pxe' in args:
+            run(['amtctrl '+dut+'-amt on'], shell=True)
+            run(['amtctrl '+dut+'-amt pxeboot'], shell=True)
+        elif 'powerup' in args:
+            run(['amtctrl '+dut+'-amt on'], shell=True)
+        else:
+            print "wsman power operation not supported."     
     else:                       # grrr: no "if (a=foo()) bar(a);" in python!
         raise NoPowerControl(dut, pcontrol, state)
 
@@ -193,9 +205,11 @@ def reboot(dut, timeout=600, managed=True):
     if managed:
         platform_transition(dut, 'reboot')
     else:
-        run(['shutdown', '-nr', 'now'], host=dut, wait=False)
-    wait_to_go_down(dut)
-    wait_to_come_up(dut)
+        print "INFO: sending reboot"
+        run(['reboot'], host=dut) #wait=False
+    wait_to_go_down(dut)                  # wait for host to go down
+    wait_to_come_up(dut, timeout=timeout) # wait for host to boot
+    print "DEBUG: host is up"
 
 def xenmgr_sleep(dut):
     """Tell xenmgr to make the platform sleep and wait until it does"""

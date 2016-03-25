@@ -55,6 +55,7 @@ class BVTDaemon():
             proc = Popen(command, stdout=PIPE, stderr=PIPE, stdin=PIPE,
                          shell=False, cwd=None, env={})
             self.running.append((job, proc))
+
             mdb.jobs.update({'_id': objectid.ObjectId(job['_id'])},
                             {'$set': {'status': 'running'}})
 
@@ -92,7 +93,10 @@ class BVTDaemon():
                             {'_id': objectid.ObjectId(proc[0]['_id'])},
                             {'$set': {'status': 'queued'}})
                     else:
-                        logs = proc[1].communicate()
+                        try:
+                            logs = proc[1].communicate() # return code 6,7 causes ValueError: I/O operation on closed file
+                        except ValueError, logs:
+                            pass
                         self.log_messages(logs, proc)
                         if proc[1].returncode == 0:
                             mdb.jobs.update(

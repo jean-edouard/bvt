@@ -52,7 +52,7 @@ def list_test_cases(options):
     file_list = []
     for subdir, dirs, files in os.walk("./src/testcases"):
         for f in files:
-            if "__" not in f and "pyc" not in f:
+            if "__" not in f and f.endswith(".py"):
                 file_list.append(f)
     file_list.sort()
     for f in file_list:
@@ -109,6 +109,8 @@ def construct_arg_dict(options, test_parameters, result_id, handle):
             arg_dict[arg] = options.reason
         elif arg == 'encrypt_vhd' and options.encrypt_vhd:
             arg_dict[arg] = True if options.encrypt_vhd == "True" else False
+        elif arg == 'time' and options.time:
+            arg_dict[arg] = options.time
 
     if len(arg_dict) != handle.entry_fn.func_code.co_argcount:
         raise InvalidNumberOfArgumentsException()
@@ -216,6 +218,8 @@ def bvt():
                       'Functionality varies from test to test.')
     parser.add_option('-R', '--reason',  action='store',
                       help='Provide a reason for performing the test.')
+    parser.add_option('-T', '--time', metavar='TIME', action='store',
+                      help='set Time limit for time sensitive tests')
     options, args = parser.parse_args()
     if options.list_test_cases:
         list_test_cases(options)

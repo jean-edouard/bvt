@@ -1,4 +1,5 @@
-#
+
+
 # Copyright (c) 2013 Citrix Systems, Inc.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -18,7 +19,7 @@
 
 """Windows VM state transitions"""
 
-from src.bvtlib.call_exec_daemon import run_via_exec_daemon
+from src.bvtlib.call_exec_daemon import run_via_exec_daemon, call_exec_daemon
 from src.bvtlib.time_limit import time_limit
 from src.bvtlib.wait_for_windows import is_windows_up, wait_for_guest_to_go_down
 from src.bvtlib.tslib import find_guest_vms
@@ -85,7 +86,7 @@ def vm_shutdown_self(dut, who='all'):
     for domain in domlist:
         if who == 'all' or domain['name'] == who:
             vmip = domains.domain_address(dut, domain['name'])
-            call_exec_daemon.call_exec_daemon('run', ['shutdown -s'], host=vmip, timeout=60)
+            call_exec_daemon('run', ['shutdown -s'], host=vmip, timeout=60)
     for domain in domlist:
         if who == 'all' or domain['name'] == who:
             wait_for_guest_to_go_down(dut, domain['name'])
@@ -137,7 +138,7 @@ def vm_hibernate_self(dut, who='all'):
     for domain in domlist:
         if who == 'all' or domain['name'] == who:
             vmip = domains.domain_address(dut, domain['name'])
-            call_exec_daemon.call_exec_daemon('run', [r'C:\Windows\System32\rundll32.exe powrprof.dll,SetSuspendState hibernate'], host=vmip, timeout=60)
+            call_exec_daemon('run', [r'C:\Windows\System32\rundll32.exe powrprof.dll,SetSuspendState hibernate'], host=vmip, timeout=60)
     for domain in domlist:
         if who == 'all' or domain['name'] == who:
             wait_for_guest_to_go_down(dut, domain['name'])
@@ -162,5 +163,24 @@ def vm_sleep_dom0(dut, who='all'):
         if who == 'all' or domain['name'] == who:
             vmip = domains.domain_address(dut, domain['name'])
             wait_for_windows_to_go_down(vmip)
+
+"""must disable hibernate to properly put to sleep, also assumes admin priv"""
+def vm_sleep_self(dut, who='all'):
+    """sleep vm/vms from within the VM"""
+    domlist = find_guest_vms(dut)
+    for domain in domlist:
+        if who == 'all' or domain['name'] == who:
+            vmip = domains.domain_address(dut, domain['name'])
+            print "turning off hibernate :" + str(call_exec_daemon(command='run', args=[r'powercfg -h off'], host=vmip, timeout=60))
+            sleep(4)
+            call_exec_daemon('run', [r'C:\Windows\System32\rundll32.exe powrprof.dll,SetSuspendState sleep'], vmip)
+	
+def vm_reinstate_hibernate(dut,who='all'):
+    """used to reinstate hibernate after vm_sleep_self call"""
+    domlist = find_guest_vms(dut)
+    for domain in domlist:
+        if who == 'all' or domain['name'] == who:
+            vmip = domains.domain_address(dut,domain['name'])
+            call_exec_daemon('run', [r'powercfg -h on'], vmip)
 
 #####~ Added for test case automation - Nyle

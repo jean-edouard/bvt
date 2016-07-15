@@ -44,7 +44,7 @@ def call_exec_daemon(command, args=list(), host=None, timeout=60, why=''):
           catch=[error])
 
 def run_via_exec_daemon(args, host, timeout=60, ignore_failure=False,
-                        split=False, echo=True, wait=True):
+                        split=False, word_split=False,line_split=False, echo=True, wait=True):
     """Run args on host.
 
     Fail after timeout.
@@ -94,8 +94,15 @@ def run_via_exec_daemon(args, host, timeout=60, ignore_failure=False,
     if exit_code != 0 and not ignore_failure:
         raise SubprocessError(exit_code, output[0], output[1])
     
-    output2 = [[line.split() for line in x.split('\n')] for 
-               x in output] if split else output 
+    if word_split:
+        output2 = [x.split() for x in output]
+    elif split: 
+        output2 = [[line.split() for line in x.split('\n')] for 
+               x in output]
+    elif line_split:
+        output2 = [x.split('\n') for x in output]
+    else:
+        output2 = output
     outv = output2[0]
     return (exit_code, outv) if ignore_failure else outv
 

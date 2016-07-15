@@ -4,10 +4,22 @@ echo "Installing required prereqs..."
 
 sudo apt-get update
 
-sudo apt-get install build-essential git python postgresql python-twisted conch python-psycopg2 python-pyasn1 python-setuptools python-docutils python-pymongo amtterm lftp
+sudo apt-get install build-essential git python postgresql python-twisted conch python-psycopg2 python-pyasn1 python-setuptools python-docutils python-nevow amtterm lftp
 
+# To get correct python-bson version (2.6.3-1build1)
+# Note: may need to remove already-installed version(s) of bson
+#[add Trusty main repo here and refresh/update]
+#sudo apt-get install python-bson=2.6.3-1build1
+
+sudo easy_install pymongo==2.2 # To get correct python-pymongo version (2.2): 
 sudo easy_install pysnmp
 sudo easy_install requests
+
+#Install amtctrl tool for wsman-only AMT versions
+git clone https://github.com/sdague/amt
+pushd amt
+sudo python setup.py install
+popd
 
 echo "Done!"
 #Setup python stuff

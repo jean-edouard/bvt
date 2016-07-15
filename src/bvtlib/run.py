@@ -293,11 +293,11 @@ def writefile(filename, content, host=None, user='root', via_root=False,
         return
     try:
         if via_root:
-            run(['scp', temp, 'root@'+host+':'+filename], env=None,
+            run(['scp', '-oStrictHostKeyChecking=no', '-oUserKnownHostsFile=/dev/null', temp, 'root@'+host+':'+filename], env=None,
                 **args)
             run(['chown', user, filename], user='root', host=host)
         else:
-            run(['scp', temp, user+'@'+host+':'+filename], env=None,
+            run(['scp', '-oStrictHostKeyChecking=no', '-oUserKnownHostsFile=/dev/null', temp, user+'@'+host+':'+filename], env=None,
                 **args)
     finally:
         unlink(temp)

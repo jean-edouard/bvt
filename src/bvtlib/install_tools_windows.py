@@ -40,6 +40,7 @@ from src.bvtlib.install_dotnet import install_dotnet
 from src.bvtlib.windows_guest import make_tools_iso_available
 from src.bvtlib.domains import domain_address
 from src.bvtlib.exceptions import UnableToInstallTools, ToolsAlreadyInstalled
+from src.bvtlib.guest_ops import get_username
 
 class ToolsIsoMissing(Exception):
     """Tools ISO not found in dom0"""
@@ -290,9 +291,10 @@ def install_dev_certs(dut, dev, domain, vm_address):
         run_via_exec_daemon(['bcdedit','/set', 'testsigning', 'on'], host=vm_address)
         reboot_windows(dut, domain, vm_address)
         wait_for_windows(dut, domain['name'])
-        call_exec_daemon('fetchFile', ['http://openxt.ainfosec.com/certificates/windows/developer.cer', 'C:\\Users\\bvt\\developer.cer'], host=vm_address, timeout=300)
-        run_via_exec_daemon(['certutil -addstore -f "Root" C:\\Users\\bvt\\developer.cer'], host=vm_address)
-        run_via_exec_daemon(['certutil -addstore -f "TrustedPublisher" C:\\Users\\bvt\\developer.cer'], host=vm_address)
+        username = get_username(dut,domain,vm_address,'windows')
+        call_exec_daemon('fetchFile', ['http://openxt.ainfosec.com/certificates/windows/developer.cer', 'C:\\Users\\%s\\developer.cer'% username], host=vm_address, timeout=300)
+        run_via_exec_daemon(['certutil -addstore -f "Root" C:\\Users\\%s\\developer.cer'% username], host=vm_address)
+        run_via_exec_daemon(['certutil -addstore -f "TrustedPublisher" C:\\Users\\%s\\developer.cer'% username], host=vm_address)
     except Exception:
         print "ERROR: Failure to install developer certs."
         print_exc()

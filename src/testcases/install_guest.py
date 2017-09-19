@@ -80,12 +80,14 @@ def check_free(dut, amount=10*1000*1000, target_os='win7'):
     if disk_free < amount:
         raise InsufficientStorage(dut, disk_free)
 
-    out = run(['xenops', 'physinfo'], host=dut, line_split=True)
+    run(['setenforce', '0'], host=dut)
+    out = run(['xl', 'info'], host=dut, line_split=True)
+    run(['setenforce', '1'], host=dut)
     megfree = None
     for line in out:
         spl = line.split()
-        if len(spl) == 5 and spl[:2] == ['free_pages', '=']:
-            megfree = int(spl[3][1:])
+        if len(spl) == 3 and spl[0] == 'free_memory':
+            megfree = int(spl[2])
     if megfree is None:
         raise UnableToEstablishMemoryFree(out)
     
@@ -251,7 +253,7 @@ def do_guest_install(dut, kind, guest, encrypt_vhd=False, busy_stop=False, url=N
     os_name, name = name_split(guest)
     if kind == 'iso':
         iso_file = '/storage/isos/%s.iso' % os_name
-        download_image(dut, kind, guest, iso_file)
+        download_image(dut, kind, guest, iso_file, url)
     def vhd_path_callback(vhd_path):
         """vhd_path is now known"""
         if kind in ['vhd', 'with_tools']:

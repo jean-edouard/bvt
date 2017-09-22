@@ -80,9 +80,9 @@ def check_free(dut, amount=10*1000*1000, target_os='win7'):
     if disk_free < amount:
         raise InsufficientStorage(dut, disk_free)
 
-    run(['setenforce', '0'], host=dut)
+#    run(['setenforce', '0'], host=dut)
     out = run(['xl', 'info'], host=dut, line_split=True)
-    run(['setenforce', '1'], host=dut)
+#    run(['setenforce', '1'], host=dut)
     megfree = None
     for line in out:
         spl = line.split()

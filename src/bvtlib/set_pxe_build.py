@@ -128,7 +128,7 @@ class AmbiguousRequest(Exception):
 class InvalidMacAddress(Exception):
     """Mac address is invalid"""
 
-def pxe_filename(dut, mac_address): 
+def pxe_filename(dut, mac_address):
     """Work out the full pathname to the file that pxelinux will read from the server"""
     if not PXE_DIR:
         raise PxeServerDirectoryUnspecified()
@@ -138,6 +138,9 @@ def pxe_filename(dut, mac_address):
     if not match('([0-9a-f]{2}-){5}([0-9a-f]{2})', mac_address_munged):
         raise InvalidMacAddress(mac_address_munged)
     return join(PXE_DIR, 'pxelinux.cfg', '01-'+mac_address_munged)
+
+def pxe_localboot(dut, mac_address):
+    os.remove(pxe_filename(dut, mac_address))
 
 class NoTFTPActivityTimeout(Exception):
     pass

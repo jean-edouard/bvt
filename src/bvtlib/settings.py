@@ -30,7 +30,7 @@ Instead do something like :
 
 from os.path import split, join, abspath
 
-BVTURL = None # URL of BVT webapp.
+BVTURL = 'localhost' # URL of BVT webapp.
 RESULTS_RECIPIENTS = None # List of mail recipients to email test results to.
 #
 # mongo database configuration

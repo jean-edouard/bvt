@@ -19,6 +19,7 @@
 from pymongo import Connection, DESCENDING, ASCENDING
 
 from src.bvtlib.settings import MONGODB_HOST, MONGODB_DATABASE, TRACK_DATABASE, LOGGING_DATABASE
+#from settings import MONGODB_HOST, MONGODB_DATABASE, TRACK_DATABASE, LOGGING_DATABASE
 
 class NoMongoHost(Exception):
     """No mongodb host supplied"""

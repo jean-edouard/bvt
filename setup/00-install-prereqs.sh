@@ -4,7 +4,7 @@ echo "Installing required prereqs..."
 
 sudo apt-get update
 
-sudo apt-get install build-essential git python postgresql python-twisted conch python-psycopg2 python-pyasn1 python-setuptools python-docutils python-nevow amtterm lftp
+sudo apt-get install build-essential git python postgresql python-twisted conch python-psycopg2 python-pyasn1 python-setuptools python-docutils python-nevow amtterm lftp dirmngr
 
 # To get correct python-bson version (2.6.3-1build1)
 # Note: may need to remove already-installed version(s) of bson
@@ -35,10 +35,13 @@ echo "Done!"
 
 echo "Installing required Mongodb..."
 #Mongodb, from mongo
-sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+# The Mongodb repository we use is old and un-maintained...
+# Below is the gpg key for it, but it's long expired...
+# Using apt-get --allow-unauthenticated to work around that
+#sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
 echo 'deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen' | sudo tee /etc/apt/sources.list.d/mongodb.list
 sudo apt-get update
-sudo apt-get install -y mongodb-org=2.6.6 mongodb-org-server=2.6.6 mongodb-org-shell=2.6.6 mongodb-org-mongos=2.6.6 mongodb-org-tools=2.6.6
+sudo apt-get install -y --allow-unauthenticated mongodb-org=2.6.6 mongodb-org-server=2.6.6 mongodb-org-shell=2.6.6 mongodb-org-mongos=2.6.6 mongodb-org-tools=2.6.6
 echo "Done!"
 
 echo "Creating empty private_settings.py"

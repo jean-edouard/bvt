@@ -127,7 +127,7 @@ def set_power_state(dut, state, args):
             run(['amtctrl '+dut+'-amt off'], shell=True)
         elif 'pxe' in args:
             run(['amtctrl '+dut+'-amt on'], shell=True)
-            run(['amtctrl '+dut+'-amt pxeboot'], shell=True)
+            run(['amtctrl '+dut+'-amt pxeboot'], shell=True, timeout=30, wait=False)
         elif 'powerup' in args:
             run(['amtctrl '+dut+'-amt on'], shell=True)
         else:

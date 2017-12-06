@@ -41,10 +41,10 @@ if [[ $proceed == "True" && $exists == "False" ]]; then
     #Also need to alias in /etc/hosts
     echo "Make sure to alias the fixed addresses in /etc/hosts for test machines."
     echo "Done!"
-	echo "Setup will now install utilities to support DDNS (dnssec-tools and bind9).  Would you like to install these?"
+	echo "Setup will now install utilities to support DDNS (libnet-dns-zonefile-fast-perl and bind9).  Would you like to install these?"
 	proceed=$(prompt)
 	if [[ $proceed == "True" ]]; then
-		sudo apt-get install dnssec-tools bind9
+		sudo apt-get install libnet-dns-zonefile-fast-perl bind9
 	else
 		echo "Skipping installation of dns utilities."
 	fi

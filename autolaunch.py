@@ -271,7 +271,7 @@ def dut_free(num):
         fcntl.flock(lockpts[0], fcntl.LOCK_EX | fcntl.LOCK_NB)
         return True
     except (IOError):
-        print 'Node %d locked.' % dut
+        print 'Node %d locked.' % num
         return False
 
 

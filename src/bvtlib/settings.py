@@ -55,7 +55,9 @@ PXE_SERVER = None # if None, assume local access to PXE. Otherwise connect to th
 # BUILD_SERVER to a machine to inspect the PXE builds from
 
 
-BUILD_SERVERS = ['openxt.ainfosec.com']
+# TODO: add option to install other branches than master
+# TODO: add option to install custom builds
+BUILD_SERVERS = ['https://openxt.ainfosec.com/builds/regular/master']
 BUILD_PATH = None # where to find centralised builds, interpolated with branch and tag
 # If you want poller.py to detect tags set MONITORED_REPOSITORY to a git
 # repository location to look at for tags
@@ -69,11 +71,11 @@ BUILDBOT2_BUILDER_FORMAT = None # alternative user URL string format accepting t
 BUILDBOT2_BUILDER_URL = None # user URL string format for a specific builder 
 BUILDBOT2_ALL_BUILDERS_URL = None # user URL for top level builders control
 BUILDBOT2_BUILD_URL = None # user URL format for specific URL, accepting the builder name and build number
-BUILDBOT_BUILD_SERVERS = ['http://openxt.ainfosec.com:8010/json/builders']
+BUILDBOT_BUILD_SERVERS = ['http://openxt-builder.ainfosec.com:8010/json/builders']
 #TODO: Automate this somehow.
 #BUILDBOT_SITE_NAMES is a list that contains the site names (SITE_NAME var in oe) corresponding to 
 #the entry in the BUILD_SERVERS list.  This will change from deployment to deployment.
-BUILDBOT_SITE_NAMES = ['lxt']
+BUILDBOT_SITE_NAMES = ['oxt']
 BUILDBOT_OUT_FMT = "%s-dev-%s-%s" #Output format for build trees according to build server.
 
 
@@ -241,8 +243,8 @@ RECOVERY_PUBLIC_KEY = 'setme'
 RECOVERY_PRIVATE_KEY = 'setme'
 
 USE_MONGO_FOR_MAC = True
-TEST_NODES = 0  # Number of test nodes active
-AUTO_SUITE = 'new-build-tests' #default test suite name for build_watcher
+TEST_NODES = 1  # Number of test nodes active
+AUTO_SUITE = 'testsuite' #default test suite name for build_watcher
 ENABLE_BW_TEST = True #Tell build_watcher to queue jobs on new builds by default
 PRINT_AVC = False #log avc denials by default but provides option to disable to avoid log clutter
 # You will need to override some settings here, so rather than force users

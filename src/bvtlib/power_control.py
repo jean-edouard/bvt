@@ -65,6 +65,24 @@ def get_power_control_type(dut):
         dutdoc = mdb.duts.find_one({'name':dut})
     return dutdoc['power_control']
 
+def get_ssh_target(dut):
+    mdb = get_autotest()
+    dutdoc = mdb.duts.find_one({'name':dut})
+    if dutdoc is None:
+        raise UnknownMachine(dut)
+    if dutdoc.get('ssh_target') is None:
+        raise UnknownMachine(dut)
+    return dutdoc['ssh_target']
+
+def get_ssh_relay(dut):
+    mdb = get_autotest()
+    dutdoc = mdb.duts.find_one({'name':dut})
+    if dutdoc is None:
+        raise UnknownMachine(dut)
+    if dutdoc.get('ssh_relay') is None:
+        raise UnknownMachine(dut)
+    return dutdoc['ssh_relay']
+
 def set_power_state(dut, state, args):
     """Set AMT state"""
     try:
@@ -131,8 +149,20 @@ def set_power_state(dut, state, args):
         elif 'powerup' in args:
             run(['amtctrl '+dut+'-amt on'], shell=True)
         else:
-            print "wsman power operation not supported."     
-    else:                       # grrr: no "if (a=foo()) bar(a);" in python!
+            print "wsman power operation not supported."
+            print "wsman power operation not supported."
+    elif pcontrol == 'ssh':
+        target = get_ssh_target(dut)
+        relay = get_ssh_relay(dut)
+        if 'powerdown' in args:
+            run(['ssh ' + target + ' "echo 0 > /proc/power/relay' + relay + '"'], shell=True)
+        elif 'pxe' in args:
+            run(['ssh ' + target + ' "echo 0 > /proc/power/relay' + relay + '"'], shell=True)
+            run(['ssh ' + target + ' "echo 1 > /proc/power/relay' + relay + '"'], shell=True)
+        elif 'powerup' in args:
+            run(['ssh ' + target + ' "echo 0 > /proc/power/relay' + relay + '"'], shell=True)
+            run(['ssh ' + target + ' "echo 1 > /proc/power/relay' + relay + '"'], shell=True)
+    else:
         raise NoPowerControl(dut, pcontrol, state)
 
 def set_s5(dut):

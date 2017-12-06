@@ -19,7 +19,7 @@
 """PXE install build on dut"""
 from socket import gethostname
 from src.bvtlib.exceptions import ExternalFailure
-from src.bvtlib.set_pxe_build import set_pxe_build, select_build, select_variant
+from src.bvtlib.set_pxe_build import pxe_localboot, set_pxe_build, select_build, select_variant
 from src.bvtlib.mongodb import get_autotest
 from src.bvtlib.power_control import power_cycle
 from src.bvtlib.dhcp import get_addresses
@@ -101,7 +101,7 @@ def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False
             print 'PXE_INSTALL: waiting to come up in installer'
             print 'INFO: Waiting to come up in installer'
             print 'INFO: ', dut
-            wait_to_come_up(dut, installer_okay=True, timeout=60)
+            wait_to_come_up(dut, installer_okay=True, timeout=120)
             print 'INFO: passed wait to come up'
             if DEFAULT_POWER_CONTROL == 'AMT':
                 if not is_installer_running(dut+'-amt', timeout=60):
@@ -110,6 +110,7 @@ def pxe_install_xc(dut, build=None, release=None, watch_tftp=None, upgrade=False
                 if not is_installer_running(dut, timeout=60):
                     raise PlatformCameUpInsteadOfInstaller(dut)
             print 'HEADLINE: SSH response from installer'
+            pxe_localboot(dut, mac_address)
             print 'INFO: set PXE back to default'
             wait_to_come_up(dut, installer_okay=False, timeout=300)
             print 'INFO: response from', dut

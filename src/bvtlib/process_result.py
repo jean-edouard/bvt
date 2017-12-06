@@ -21,7 +21,7 @@
 import re, time
 from time import asctime, localtime
 from pprint import pprint
-from src.bvtlib.mongodb import get_autotest, get_track, get_logging, DESCENDING
+from mongodb import get_autotest, get_track, get_logging, DESCENDING
 
 CLASSIFIER_FIELDS = ['test_case', 'dut_name', 'failure', 'earliest_build', 
                      'latest_build', 'result_id', 'log_entry']
